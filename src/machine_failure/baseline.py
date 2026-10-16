@@ -93,6 +93,15 @@ def format_comparison(table: pd.DataFrame) -> str:
     return cells.to_string()
 
 
+def describe_run(X_train: pd.DataFrame, y_train: pd.Series, n_repeats: int) -> str:
+    """One line describing how the models were cross-validated."""
+    return (
+        f"{N_SPLITS}-fold stratified cross-validation on the training set "
+        f"({len(X_train):,} rows, {int(y_train.sum())} failures), "
+        f"{n_repeats} repeat(s). Mean ± std across folds."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -107,11 +116,7 @@ def main() -> None:
     X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
     table = compare_models(build_baselines(), X_train, y_train, n_repeats=args.repeats)
 
-    print(
-        f"{N_SPLITS}-fold stratified cross-validation on the training set "
-        f"({len(X_train):,} rows, {int(y_train.sum())} failures), "
-        f"{args.repeats} repeat(s). Mean ± std across folds."
-    )
+    print(describe_run(X_train, y_train, args.repeats))
     print(format_comparison(table))
 
 
