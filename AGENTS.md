@@ -16,6 +16,8 @@
 - This includes unit tests, integration tests, linters, formatters, type checkers, static analysis, and other configured validation tools, as applicable.
 - Inspect `pyproject.toml`, project documentation, and configuration files to identify the actual checks and their correct commands.
 - Add or update tests when changing behavior, fixing bugs, or introducing functionality.
+- Test coverage is a quality check alongside tests, linters, formatters, and type checkers. Aim for as much meaningful coverage as practical, so new or changed code comes with tests that exercise it. The minimum enforced in CI is configured in `pyproject.toml`; do not lower it to get a passing result.
+- Exclude code from coverage only for a stated reason, such as code that cannot be tested sensibly. Do not write tests that only execute lines without asserting behavior, and do not treat a coverage percentage alone as proof that the tests are good.
 - Keep documentation up to date alongside tests, linters, and other checks. Update `README.md` files across the repository whenever a change affects what they describe, such as setup, commands, project layout, dependencies, or behavior.
 - Do not claim that a check passed unless you actually ran it and verified its result.
 - If a check fails, investigate and fix failures caused by your changes.
