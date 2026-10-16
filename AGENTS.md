@@ -16,6 +16,7 @@
 - This includes unit tests, integration tests, linters, formatters, type checkers, static analysis, and other configured validation tools, as applicable.
 - Inspect `pyproject.toml`, project documentation, and configuration files to identify the actual checks and their correct commands.
 - Add or update tests when changing behavior, fixing bugs, or introducing functionality.
+- Keep documentation up to date alongside tests, linters, and other checks. Update `README.md` files across the repository whenever a change affects what they describe, such as setup, commands, project layout, dependencies, or behavior.
 - Do not claim that a check passed unless you actually ran it and verified its result.
 - If a check fails, investigate and fix failures caused by your changes.
 - Do not hide, skip, weaken, or remove tests or quality checks just to obtain a passing result.
