@@ -5,11 +5,14 @@ from pathlib import Path
 
 import pandas as pd
 from pandas.api import types as pdt
+from sklearn.model_selection import train_test_split
 from ucimlrepo import fetch_ucirepo
 
 UCI_DATASET_ID = 601
 RAW_FILENAME = "ai4i2020.csv"
 DEFAULT_RAW_DIR = Path("data/raw")
+TEST_SIZE = 0.2
+RANDOM_STATE = 42
 
 ID_COLUMNS = ["UID", "Product ID"]
 TYPE_COLUMN = "Type"
@@ -112,6 +115,26 @@ def load_xy(
     """
     df = load_raw(path)
     return df[FEATURE_COLUMNS].copy(), df[TARGET_COLUMN].copy()
+
+
+def split_train_test(
+    X: pd.DataFrame,
+    y: pd.Series,
+    *,
+    test_size: float = TEST_SIZE,
+    random_state: int = RANDOM_STATE,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    """Split into a training set and a held-out test set.
+
+    The split is stratified on ``y``, so both parts keep the failure rate, and
+    it is reproducible for a given ``random_state``. The test set should be used
+    only once, for the final evaluation; use cross-validation on the training
+    set to compare and tune models.
+    """
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, stratify=y, random_state=random_state
+    )
+    return X_train, X_test, y_train, y_test
 
 
 def main() -> None:
