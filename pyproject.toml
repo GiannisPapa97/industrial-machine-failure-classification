@@ -15,6 +15,7 @@ dependencies = [
 dev = [
     "jupyter>=1.1.1",
     "mypy>=2.4.0",
+    "pandas-stubs>=3.0.5.260914",
     "pytest>=9.1.1",
     "ruff>=0.17.1",
 ]
@@ -35,7 +36,13 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]
+# X / X_train are the standard names for feature matrices in scikit-learn code
+ignore = ["N803", "N806"]
 
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["ucimlrepo"]
+ignore_missing_imports = true
