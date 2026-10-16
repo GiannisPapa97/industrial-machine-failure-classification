@@ -222,6 +222,85 @@ How to read it:
   than either. QDA is the exception and does best on the computed features alone.
 - Based on this, the remaining steps use all 9 features.
 
+## Hyperparameter tuning
+
+```bash
+uv run python -m machine_failure.tune --n-jobs 4
+```
+
+Tunes four models with randomized search and compares each with its default
+settings. For every model it scores the defaults, estimates the tuned model with
+nested cross-validation, and runs one search on the whole training set to find
+the setting to use. It uses the training set only and all 9 features, and takes
+about 20 minutes on 4 cores. Options: `--models` (a subset), `--n-iter` (random
+settings per search, default 20), `--inner-splits` (default 3), `--repeats` and
+`--n-jobs`.
+
+**Why these four models.** The search is the expensive step, and the more
+settings are compared on 271 failures, the more likely it is that the "best" one
+is just the luckiest. So only the most promising models are tuned, chosen from
+the default-settings comparison above:
+
+- Random forest, histogram gradient boosting and XGBoost are the top three by
+  PR-AUC (0.890, 0.889 and 0.855).
+- Extra trees is next (0.824), a cheap relative of random forest.
+- The MLP (0.795) ranks fifth, has no class-weight option and many more
+  settings to tune, so it was left out to keep the search small. SVM and KNN
+  (0.68 and 0.62) and logistic regression and QDA (about 0.45) are far behind.
+  The feature-set comparison also showed that all 9 features are best for the
+  tree-based models.
+
+The search spaces are in `search_spaces.py`. Each contains the default setting,
+so the untuned model is always one of the options, and the class-imbalance
+setting is part of the search (class weights, or `scale_pos_weight` for
+XGBoost).
+
+**How the tuned scores are estimated.** In each of the 5 outer folds the search
+runs on that fold's training part only, with its own 3-fold cross-validation,
+and the setting it picks is scored on the held-out fold. The best score a search
+reports for itself is optimistic, because the setting was picked on those same
+folds; the nested scores are not. They use the same outer folds as the untuned
+models, so the two are directly comparable.
+
+Results at the time of writing (5 outer folds, 8,000 training rows, 271
+failures; mean ± standard deviation across folds):
+
+| Model                            | PR-AUC        | ROC-AUC       | Recall        | Precision     | F1            |
+| -------------------------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
+| random_forest (default)          | 0.890 ± 0.030 | 0.971 ± 0.014 | 0.749 ± 0.057 | 0.985 ± 0.014 | 0.850 ± 0.040 |
+| random_forest (tuned)            | 0.911 ± 0.025 | 0.978 ± 0.017 | 0.819 ± 0.042 | 0.987 ± 0.012 | 0.895 ± 0.024 |
+| hist_gradient_boosting (default) | 0.889 ± 0.017 | 0.971 ± 0.009 | 0.823 ± 0.034 | 0.899 ± 0.052 | 0.858 ± 0.023 |
+| hist_gradient_boosting (tuned)   | 0.893 ± 0.022 | 0.975 ± 0.012 | 0.819 ± 0.034 | 0.923 ± 0.036 | 0.867 ± 0.024 |
+| extra_trees (default)            | 0.824 ± 0.026 | 0.971 ± 0.011 | 0.546 ± 0.055 | 0.947 ± 0.030 | 0.692 ± 0.051 |
+| extra_trees (tuned)              | 0.873 ± 0.028 | 0.976 ± 0.018 | 0.764 ± 0.050 | 0.911 ± 0.045 | 0.829 ± 0.023 |
+| xgboost (default)                | 0.855 ± 0.029 | 0.971 ± 0.012 | 0.801 ± 0.027 | 0.828 ± 0.015 | 0.814 ± 0.015 |
+| xgboost (tuned)                  | 0.870 ± 0.034 | 0.980 ± 0.014 | 0.808 ± 0.044 | 0.842 ± 0.041 | 0.823 ± 0.018 |
+
+Best settings found by the search on the whole training set:
+
+| Model                  | Settings                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| random_forest          | 500 trees, `max_depth` 8, `min_samples_leaf` 2, `max_features` 0.8, no class weights                                      |
+| extra_trees            | 300 trees, no depth limit, `min_samples_leaf` 5, `max_features` 0.8, no class weights                                     |
+| hist_gradient_boosting | `learning_rate` 0.1, 100 iterations, 31 leaf nodes, `min_samples_leaf` 20, `l2_regularization` 0.1, balanced class weights |
+| xgboost                | 300 trees, `learning_rate` 0.05, `max_depth` 6, `min_child_weight` 1, `scale_pos_weight` 5, no subsampling                 |
+
+How to read it:
+
+- Tuning helps modestly. Extra trees gains the most (+0.05 PR-AUC, more than its
+  spread). Random forest gains 0.02 and XGBoost 0.015, within one spread, and
+  gradient boosting about 0.004, so its defaults were already close to its best.
+- Random forest is first at 0.911 and gradient boosting second at 0.893, but the
+  gap is smaller than the spread across folds, so this comparison does not
+  clearly separate them. Extra trees and XGBoost are tied behind them.
+- Strong class weighting was not needed for PR-AUC: the best random forest and
+  extra trees use none, and XGBoost prefers a weight of 5 over about 28.
+- For every model the search's own best score is within 0.001 of the nested
+  estimate, so picking the best of 20 settings barely inflated it here.
+- This is one run with one seed and 20 settings per model. Precision, recall and
+  F1 still use the default 0.5 threshold; choosing the threshold is a separate
+  step.
+
 ## Notebooks
 
 Exploration lives in `notebooks/`:
@@ -260,6 +339,9 @@ src/machine_failure/   package code
   models.py            candidate models and the full model list
   comparison.py        compare all models, ordered by PR-AUC
   ablation.py          compare all models across the feature sets
+  search_spaces.py     hyperparameter search spaces of the tuned models
+  tuning.py            randomized search and nested cross-validation
+  tune.py              tune the models and compare with the defaults
 tests/                 tests
 notebooks/             exploration notebooks
 data/raw/              downloaded dataset (not committed)
