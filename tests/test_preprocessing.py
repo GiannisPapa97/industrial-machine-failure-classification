@@ -3,13 +3,23 @@ import pandas as pd
 import pytest
 from sklearn.base import clone
 
+from machine_failure.data import NUMERIC_FEATURES
+from machine_failure.features import DERIVED_FEATURES
 from machine_failure.preprocessing import (
+    FEATURE_SETS,
     SCALED_FEATURES,
     TYPE_CATEGORIES,
+    FeatureSet,
     build_preprocessor,
 )
 
-EXPECTED_COLUMNS = [*(f"Type_{c}" for c in TYPE_CATEGORIES), *SCALED_FEATURES]
+TYPE_COLUMNS = [f"Type_{c}" for c in TYPE_CATEGORIES]
+EXPECTED_COLUMNS = [*TYPE_COLUMNS, *SCALED_FEATURES]
+COLUMNS_BY_SET = {
+    "raw": [*TYPE_COLUMNS, *NUMERIC_FEATURES],
+    "computed": list(DERIVED_FEATURES),
+    "all": EXPECTED_COLUMNS,
+}
 
 
 def make_features(n: int = 60, seed: int = 0) -> pd.DataFrame:
@@ -94,3 +104,37 @@ def test_can_be_cloned_and_does_not_share_fitted_state() -> None:
     copy = clone(fitted)
 
     assert not hasattr(copy.steps[0][1], "feature_names_in_")
+
+
+@pytest.mark.parametrize("feature_set", FEATURE_SETS)
+def test_feature_set_selects_the_columns(feature_set: FeatureSet) -> None:
+    features = make_features()
+
+    result = build_preprocessor(feature_set).fit_transform(features)
+
+    assert list(result.columns) == COLUMNS_BY_SET[feature_set]
+    assert result.index.equals(features.index)
+    numeric = [c for c in result.columns if c not in TYPE_COLUMNS]
+    assert result[numeric].mean().to_numpy() == pytest.approx(0.0, abs=1e-9)
+    assert result[numeric].std(ddof=0).to_numpy() == pytest.approx(1.0)
+
+
+def test_all_features_is_the_default() -> None:
+    result = build_preprocessor().fit_transform(make_features())
+
+    assert list(result.columns) == COLUMNS_BY_SET["all"]
+
+
+def test_computed_set_uses_the_derived_values() -> None:
+    features = make_features()
+    power = features["Torque"] * features["Rotational speed"] * 2 * np.pi / 60
+
+    result = build_preprocessor("computed").fit_transform(features)
+
+    expected = (power - power.mean()) / power.std(ddof=0)
+    assert result["power"].to_numpy() == pytest.approx(expected.to_numpy())
+
+
+def test_unknown_feature_set_raises() -> None:
+    with pytest.raises(ValueError, match="feature_set must be one of"):
+        build_preprocessor("everything")  # type: ignore[arg-type]
