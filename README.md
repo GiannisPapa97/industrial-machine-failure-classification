@@ -12,7 +12,7 @@ temperature, rotational speed, torque, tool wear, product type).
 
 - Target: `Machine failure` (binary, heavily imbalanced).
 - Leakage: `TWF`, `HDF`, `PWF`, `OSF`, `RNF` define the target and must not be
-  used as features. `UDI` and `Product ID` are identifiers and are dropped.
+  used as features. `UID` and `Product ID` are identifiers and are dropped.
 - Metrics: PR-AUC, recall, precision, F1 and the confusion matrix. Accuracy is
   misleading because of the class imbalance.
 
@@ -23,6 +23,18 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.14.
 ```bash
 uv sync
 ```
+
+## Get the data
+
+The dataset is not committed. Download it from the UCI repository into
+`data/raw/ai4i2020.csv`:
+
+```bash
+uv run python -m machine_failure.data
+```
+
+An existing file is never replaced unless you pass `--overwrite`. Use `--dest`
+to write to a different directory.
 
 ## Checks
 
@@ -36,7 +48,7 @@ uv run pytest
 ## Layout
 
 ```
-src/machine_failure/   package code
+src/machine_failure/   package code (data.py: dataset download)
 tests/                 tests
 data/raw/              downloaded dataset (not committed)
 ```
