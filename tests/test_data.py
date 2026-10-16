@@ -1,8 +1,11 @@
+import runpy
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
+import ucimlrepo
 
 from machine_failure import data
 
@@ -18,6 +21,8 @@ def fake_fetch(monkeypatch: pytest.MonkeyPatch) -> list[int]:
         return SimpleNamespace(data=SimpleNamespace(original=frame))
 
     monkeypatch.setattr(data, "fetch_ucirepo", fetch)
+    # Running the module as a script re-imports it, so patch the source too.
+    monkeypatch.setattr(ucimlrepo, "fetch_ucirepo", fetch)
     return calls
 
 
@@ -172,3 +177,48 @@ def test_load_xy_validates_the_data(tmp_path: Path) -> None:
 
     with pytest.raises(data.DataValidationError):
         data.load_xy(write_csv(df, tmp_path))
+
+
+def test_main_downloads_to_dest_and_prints_path(
+    tmp_path: Path,
+    fake_fetch: list[int],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["data", "--dest", str(tmp_path)])
+
+    data.main()
+
+    expected = tmp_path / data.RAW_FILENAME
+    assert capsys.readouterr().out.strip() == str(expected)
+    assert expected.is_file()
+    assert fake_fetch == [data.UCI_DATASET_ID]
+
+
+def test_main_overwrite_flag_replaces_existing_file(
+    tmp_path: Path,
+    fake_fetch: list[int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / data.RAW_FILENAME
+    path.write_text("old\n")
+    monkeypatch.setattr(sys, "argv", ["data", "--dest", str(tmp_path), "--overwrite"])
+
+    data.main()
+
+    assert pd.read_csv(path).shape == (2, 2)
+    assert fake_fetch == [data.UCI_DATASET_ID]
+
+
+@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
+def test_module_runs_main_when_executed_as_script(
+    tmp_path: Path,
+    fake_fetch: list[int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["data", "--dest", str(tmp_path)])
+
+    runpy.run_module("machine_failure.data", run_name="__main__")
+
+    assert (tmp_path / data.RAW_FILENAME).is_file()
+    assert fake_fetch == [data.UCI_DATASET_ID]
