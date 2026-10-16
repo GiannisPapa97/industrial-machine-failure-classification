@@ -9,6 +9,7 @@ dependencies = [
     "scikit-learn>=1.9.1",
     "seaborn>=0.13.2",
     "ucimlrepo>=0.0.7",
+    "xgboost-cpu>=3.4.1",
 ]
 
 [dependency-groups]
