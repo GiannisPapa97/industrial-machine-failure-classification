@@ -13,3 +13,11 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+# Notebooks
+.ipynb_checkpoints/
+
+# Data (downloaded, not committed)
+data/*
+!data/raw/
+data/raw/*
+!data/raw/.gitkeep
