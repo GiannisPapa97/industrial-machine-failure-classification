@@ -81,6 +81,7 @@ Allowed types and examples:
 - `chore/` — maintenance, dependencies, configuration, and general housekeeping; e.g. `chore/update-dev-dependencies`
 - `perf/` — performance improvements; e.g. `perf/optimize-feature-engineering`
 - `ci/` — continuous integration and automation; e.g. `ci/add-pytest-workflow`
+- `devops/` — Docker, deployment, and infrastructure; e.g. `devops/add-dockerfile`
 - `revert/` — reverting a previous change; e.g. `revert/remove-old-preprocessing`
 
 Branch naming rules:
@@ -110,11 +111,12 @@ Examples:
 - `chore: update development dependencies`
 - `perf: optimize feature engineering`
 - `ci: add automated test workflow`
+- `devops: add dockerfile`
 - `revert: remove old preprocessing`
 
 Commit message rules:
 
-- Use one of the approved type prefixes: `feat`, `fix`, `docs`, `ref`, `test`, `chore`, `perf`, `ci`, or `revert`.
+- Use one of the approved type prefixes: `feat`, `fix`, `docs`, `ref`, `test`, `chore`, `perf`, `ci`, `devops`, or `revert`.
 - Use a colon followed by exactly one space after the type.
 - Write a concise description of the change.
 - Prefer imperative descriptions, such as `add`, `fix`, `update`, or `remove`.
@@ -137,11 +139,12 @@ Examples:
 - `chore: update development dependencies`
 - `perf: optimize feature engineering`
 - `ci: add automated test workflow`
+- `devops: add dockerfile`
 - `revert: remove old preprocessing`
 
 Pull request title rules:
 
-- Use one of the approved type prefixes: `feat`, `fix`, `docs`, `ref`, `test`, `chore`, `perf`, `ci`, or `revert`.
+- Use one of the approved type prefixes: `feat`, `fix`, `docs`, `ref`, `test`, `chore`, `perf`, `ci`, `devops`, or `revert`.
 - Separate the type and description with a colon followed by one space.
 - Keep titles concise, descriptive, and consistent with the scope of the pull request.
 - Do not use the slash-separated branch format in pull request titles.
