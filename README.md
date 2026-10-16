@@ -63,6 +63,8 @@ uv run pytest
 coverage and the uncovered line numbers). In CI, the `test` job adds the same
 table to the run summary, visible from the pull request's Checks tab, and
 posts it as a single comment on the pull request that is updated on each push.
+The tests fail if total coverage drops below 90% (`fail_under` in
+`pyproject.toml`).
 
 ## Layout
 
