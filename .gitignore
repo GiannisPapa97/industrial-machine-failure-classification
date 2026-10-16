@@ -27,3 +27,6 @@ data/raw/*
 .coverage.*
 htmlcov/
 coverage.xml
+
+# Editor settings
+.vscode/
