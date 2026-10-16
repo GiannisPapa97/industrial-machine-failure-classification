@@ -50,6 +50,26 @@ dtypes differ, `Type` is not L/M/H, or a target or flag column is not 0/1.
 `load_xy` drops the identifiers and the five failure-mode flags, which would
 leak the target.
 
+## Feature engineering
+
+`FeatureEngineer` is a scikit-learn transformer that appends three features to
+the output of `load_xy`:
+
+- `temp_diff`: process temperature minus air temperature (K)
+- `power`: torque times rotational speed, converted from rpm (W)
+- `strain`: tool wear times torque (minNm)
+
+```python
+from machine_failure.data import load_xy
+from machine_failure.features import FeatureEngineer
+
+X, y = load_xy()
+X_features = FeatureEngineer().fit_transform(X)  # 6 columns in, 9 columns out
+```
+
+Each feature is computed row by row and nothing is learned from the data, so it
+is safe to use inside a `Pipeline` and cross-validation.
+
 ## Notebooks
 
 Exploration lives in `notebooks/`:
@@ -79,7 +99,7 @@ The tests fail if total coverage drops below 90% (`fail_under` in
 ## Layout
 
 ```
-src/machine_failure/   package code (data.py: dataset download and loading)
+src/machine_failure/   package code (data.py: download and loading, features.py: derived features)
 tests/                 tests
 notebooks/             exploration notebooks
 data/raw/              downloaded dataset (not committed)
