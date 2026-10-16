@@ -10,14 +10,20 @@ from sklearn.ensemble import (
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
+from xgboost import XGBClassifier
 
 from machine_failure.evaluation import cross_validate_model
-from machine_failure.models import build_candidates, with_preprocessing
+from machine_failure.models import (
+    SCALE_POS_WEIGHT,
+    build_candidates,
+    with_preprocessing,
+)
 
 EXPECTED_MODELS = {
     "random_forest": RandomForestClassifier,
     "extra_trees": ExtraTreesClassifier,
     "hist_gradient_boosting": HistGradientBoostingClassifier,
+    "xgboost": XGBClassifier,
     "knn": KNeighborsClassifier,
     "svm": SVC,
     "mlp": MLPClassifier,
@@ -61,8 +67,15 @@ def test_models_that_support_it_weight_the_classes(name: str) -> None:
     assert str(model.class_weight).startswith("balanced")
 
 
+def test_xgboost_weights_failures_through_scale_pos_weight() -> None:
+    model = build_candidates()["xgboost"].steps[-1][1]
+
+    assert model.scale_pos_weight == SCALE_POS_WEIGHT > 1
+
+
 @pytest.mark.parametrize(
-    "name", ["random_forest", "extra_trees", "hist_gradient_boosting", "mlp"]
+    "name",
+    ["random_forest", "extra_trees", "hist_gradient_boosting", "xgboost", "mlp"],
 )
 def test_random_models_are_seeded(name: str) -> None:
     model = build_candidates()[name].steps[-1][1]

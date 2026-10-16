@@ -42,7 +42,7 @@ def test_all_models_start_with_the_baselines() -> None:
 
     assert names[:2] == ["dummy", "logistic_regression"]
     assert names[2:] == list(models.build_candidates())
-    assert len(names) == 9
+    assert len(names) == 10
 
 
 def test_sort_by_metric_puts_the_best_model_first() -> None:
