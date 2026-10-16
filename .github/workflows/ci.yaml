@@ -48,6 +48,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # post the coverage comment
     steps:
       - uses: actions/checkout@v7
 
@@ -65,5 +68,22 @@ jobs:
 
       - name: Coverage summary
         run: |
-          echo "### Coverage" >> "$GITHUB_STEP_SUMMARY"
-          uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Coverage"
+            echo
+            uv run coverage report --format=markdown
+          } > "$RUNNER_TEMP/coverage.md"
+          cat "$RUNNER_TEMP/coverage.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # Forked PRs get a read-only token, so only comment on same-repo PRs.
+      - name: Coverage comment
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: >-
+          gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/coverage.md"
+          --edit-last --create-if-none
