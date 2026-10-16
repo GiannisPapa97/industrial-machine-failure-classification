@@ -70,6 +70,61 @@ X_features = FeatureEngineer().fit_transform(X)  # 6 columns in, 9 columns out
 Each feature is computed row by row and nothing is learned from the data, so it
 is safe to use inside a `Pipeline` and cross-validation.
 
+## Split, preprocess and evaluate
+
+```python
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+
+from machine_failure.data import load_xy, split_train_test
+from machine_failure.evaluation import cross_validate_model, summarize_scores
+from machine_failure.preprocessing import build_preprocessor
+
+X, y = load_xy()
+X_train, X_test, y_train, y_test = split_train_test(X, y)  # stratified 80/20
+
+model = Pipeline(
+    [("preprocess", build_preprocessor()), ("model", LogisticRegression())]
+)
+scores = cross_validate_model(model, X_train, y_train)  # one row per fold
+print(summarize_scores(scores))  # mean and std of each metric
+```
+
+- `split_train_test` is stratified and seeded, so both parts keep the 3.4% failure
+  rate. The test set is held out and used once, for the final evaluation.
+- `build_preprocessor` adds the derived features, one-hot encodes `Type` and
+  standardizes the numeric columns (11 named columns out). Put it inside the
+  model `Pipeline` so each cross-validation fold learns its own scaling from its
+  training part only.
+- `cross_validate_model` runs stratified 5-fold cross-validation on the training
+  set and returns one row of scores per fold. `summarize_scores` gives the mean
+  and standard deviation of each metric.
+- Metrics: PR-AUC (the main one), ROC-AUC, recall, precision, F1 and accuracy.
+  Precision, recall and F1 use the default 0.5 threshold.
+
+## Baselines
+
+```bash
+uv run python -m machine_failure.baseline
+```
+
+Cross-validates a dummy classifier (always predicts "no failure") and a
+class-weighted logistic regression on the training set, and prints the mean and
+standard deviation of each metric. The test set is not used. Use `--repeats N`
+to repeat the cross-validation with different shuffles for steadier estimates.
+
+Results at the time of writing (5-fold, 8,000 training rows, 271 failures):
+
+| Model               | PR-AUC        | ROC-AUC       | Recall        | Precision     |
+| ------------------- | ------------- | ------------- | ------------- | ------------- |
+| Dummy               | 0.034 ± 0.000 | 0.500 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 |
+| Logistic regression | 0.459 ± 0.047 | 0.923 ± 0.015 | 0.841 ± 0.051 | 0.162 ± 0.009 |
+
+The dummy reaches 96.6% accuracy while catching no failures, which is why
+accuracy is not used to compare models. Logistic regression catches most
+failures at the default threshold, but most of its alerts are false alarms; the
+PR-AUC of about 0.46 is the bar later models need to beat.
+
 ## Notebooks
 
 Exploration lives in `notebooks/`:
@@ -99,7 +154,12 @@ The tests fail if total coverage drops below 90% (`fail_under` in
 ## Layout
 
 ```
-src/machine_failure/   package code (data.py: download and loading, features.py: derived features)
+src/machine_failure/   package code
+  data.py              download, load, validate, train/test split
+  features.py          derived features (FeatureEngineer)
+  preprocessing.py     encoding and scaling pipeline
+  evaluation.py        cross-validated metrics
+  baseline.py          baseline models and their comparison
 tests/                 tests
 notebooks/             exploration notebooks
 data/raw/              downloaded dataset (not committed)
