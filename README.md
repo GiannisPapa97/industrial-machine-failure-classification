@@ -131,15 +131,15 @@ PR-AUC of about 0.46 is the bar later models need to beat.
 uv run python -m machine_failure.comparison
 ```
 
-Cross-validates the two baselines and seven candidate models on the same
+Cross-validates the two baselines and eight candidate models on the same
 training folds and prints one table, ordered by mean PR-AUC. It takes about a
 minute. The test set is not used. Use `--repeats N` for steadier estimates.
 
-The candidates are random forest, extra trees, histogram gradient boosting, KNN,
-SVM, an MLP and quadratic discriminant analysis, all behind the shared
-preprocessing pipeline with default settings and no tuning. Models that support
-it weight the classes inversely to their frequency (random forest, extra trees,
-gradient boosting and SVM).
+The candidates are random forest, extra trees, histogram gradient boosting,
+XGBoost, KNN, SVM, an MLP and quadratic discriminant analysis, all behind the
+shared preprocessing pipeline with default settings and no tuning. Models that
+support it weight the classes inversely to their frequency (random forest, extra
+trees, gradient boosting and SVM; XGBoost through `scale_pos_weight`).
 
 Results at the time of writing (5-fold, 8,000 training rows, 271 failures; mean
 ± standard deviation across folds):
@@ -148,6 +148,7 @@ Results at the time of writing (5-fold, 8,000 training rows, 271 failures; mean
 | ---------------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
 | random_forest          | 0.890 ± 0.030 | 0.971 ± 0.014 | 0.749 ± 0.057 | 0.985 ± 0.014 | 0.850 ± 0.040 |
 | hist_gradient_boosting | 0.889 ± 0.017 | 0.971 ± 0.009 | 0.823 ± 0.034 | 0.899 ± 0.052 | 0.858 ± 0.023 |
+| xgboost                | 0.855 ± 0.029 | 0.971 ± 0.012 | 0.801 ± 0.027 | 0.828 ± 0.015 | 0.814 ± 0.015 |
 | extra_trees            | 0.824 ± 0.026 | 0.971 ± 0.011 | 0.546 ± 0.055 | 0.947 ± 0.030 | 0.692 ± 0.051 |
 | mlp                    | 0.795 ± 0.031 | 0.971 ± 0.011 | 0.668 ± 0.047 | 0.783 ± 0.081 | 0.719 ± 0.043 |
 | svm                    | 0.682 ± 0.025 | 0.962 ± 0.011 | 0.871 ± 0.048 | 0.309 ± 0.020 | 0.455 ± 0.024 |
@@ -161,6 +162,9 @@ How to read it:
 - Random forest and gradient boosting are tied on PR-AUC. Their gap is far
   smaller than the spread across folds, so this comparison cannot separate them.
   Both roughly double the logistic regression baseline.
+- XGBoost is third, about 0.035 behind them, which is roughly one standard
+  deviation. It has the most balanced precision and recall of the three at the
+  default threshold. It has many settings that were not tuned here.
 - Precision, recall and F1 use the default 0.5 threshold. Random forest is very
   precise but misses about a quarter of the failures, while gradient boosting
   finds more of them with somewhat lower precision. Choosing the decision
