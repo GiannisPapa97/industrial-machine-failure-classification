@@ -50,6 +50,16 @@ dtypes differ, `Type` is not L/M/H, or a target or flag column is not 0/1.
 `load_xy` drops the identifiers and the five failure-mode flags, which would
 leak the target.
 
+## Notebooks
+
+Exploration lives in `notebooks/`:
+
+- `01_eda.ipynb`: exploratory data analysis of the dataset.
+
+Open them with `uv run jupyter lab` after downloading the data. Notebooks are
+committed without outputs, so clear all outputs before committing. `ruff`
+checks and formats the notebooks together with the rest of the code.
+
 ## Checks
 
 ```bash
@@ -71,5 +81,6 @@ The tests fail if total coverage drops below 90% (`fail_under` in
 ```
 src/machine_failure/   package code (data.py: dataset download and loading)
 tests/                 tests
+notebooks/             exploration notebooks
 data/raw/              downloaded dataset (not committed)
 ```
