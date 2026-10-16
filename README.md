@@ -59,6 +59,10 @@ uv run mypy
 uv run pytest
 ```
 
+`pytest` also prints a coverage report (per file and total, with branch
+coverage and the uncovered line numbers). In CI, the `test` job adds the same
+table to the run summary, visible from the pull request's Checks tab.
+
 ## Layout
 
 ```
