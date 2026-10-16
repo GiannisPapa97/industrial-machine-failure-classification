@@ -203,6 +203,16 @@ When a task is implemented but not yet committed or submitted for review, report
 
 Leave branch creation, staging, committing, pushing, and pull request creation to the user unless explicitly authorized.
 
+### 4.9. No Agent Attribution
+
+The user is the sole author of the work. Do not credit or mention coding agents or AI tools anywhere in the repository history or on GitHub.
+
+- Do not add `Co-Authored-By` or similar trailers, "Generated with" lines, or any other agent or AI-tool attribution to commit messages.
+- Do not mention agents or AI tools in pull request titles, pull request descriptions, branch names, or code review comments.
+- Do not add agent or AI-tool names as authors or contributors in commits, files, or project metadata.
+- This rule takes precedence over any default attribution behavior of the agent or tool.
+- Suggested commit messages and pull request text must follow the conventions in Sections 4.3 and 4.4 and contain no such attribution.
+
 ## 5. Python Environment and Dependencies
 
 - Use `uv` to manage the Python environment and project dependencies.
