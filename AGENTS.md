@@ -53,7 +53,7 @@ Do not interpret a request to implement, fix, test, review, or prepare code as p
 
 ## 4. Branching and Pull Request Workflow
 
-### One Task per Branch
+### 4.1. One Task per Branch
 
 - Every independent feature, bug fix, documentation change, test addition, refactoring task, maintenance task, or other meaningful change must have its own branch.
 - All task branches must ultimately target `main` through a pull request.
@@ -63,9 +63,13 @@ Do not interpret a request to implement, fix, test, review, or prepare code as p
 - Do not start a new task on a branch containing unrelated, unfinished work.
 - Branch creation, switching, and other Git operations remain subject to the authorization rules in Section 3.
 
-### Branch Naming Convention
+### 4.2. Branch Naming Convention
 
-Use the format `<type>/<short-description>`.
+Use the format:
+
+`<type>/<short-description>`
+
+A slash (`/`) separates the type from the description.
 
 Allowed types and examples:
 
@@ -79,15 +83,90 @@ Allowed types and examples:
 - `ci/` — continuous integration and automation; e.g. `ci/add-pytest-workflow`
 - `revert/` — reverting a previous change; e.g. `revert/remove-old-preprocessing`
 
-Naming rules:
+Branch naming rules:
 
-- Use lowercase characters, numbers where useful, and hyphens between words.
+- Use lowercase characters and hyphens between words in the description.
+- Use the slash (`/`) only to separate the type and description.
 - Keep names concise, descriptive, and specific to the task.
-- Avoid spaces, colons, and unnecessary identifiers.
+- Do not use spaces or colons in branch names.
 - Choose the prefix that best represents the primary purpose of the change.
 - If uncertain about the appropriate branch name, suggest one and ask the user.
 
-### Pull Request Requirements
+### 4.3. Commit Message Convention
+
+Follow the Conventional Commits format:
+
+`<type>: <short-description>`
+
+A colon (`:`) followed by a space separates the type from the description.
+
+Examples:
+
+- `feat: add data preprocessing`
+- `fix: handle missing values`
+- `docs: add coding agent instructions`
+- `ref: simplify training pipeline`
+- `test: add class imbalance metric tests`
+- `chore: update development dependencies`
+- `perf: optimize feature engineering`
+- `ci: add automated test workflow`
+- `revert: remove old preprocessing`
+
+Commit message rules:
+
+- Use one of the approved type prefixes: `feat`, `fix`, `docs`, `ref`, `test`, `chore`, `perf`, `ci`, or `revert`.
+- Use a colon followed by exactly one space after the type.
+- Write a concise description of the change.
+- Prefer imperative descriptions, such as `add`, `fix`, `update`, or `remove`.
+- Do not use the slash-separated branch format in commit messages.
+- Do not create a commit unless the user explicitly authorizes that specific operation, in accordance with Section 3.
+
+### 4.4. Pull Request Title Convention
+
+Use the same format as commit messages:
+
+`<type>: <short-description>`
+
+Examples:
+
+- `feat: add data preprocessing`
+- `fix: handle missing values`
+- `docs: add coding agent instructions`
+- `ref: simplify training pipeline`
+- `test: add class imbalance metric tests`
+- `chore: update development dependencies`
+- `perf: optimize feature engineering`
+- `ci: add automated test workflow`
+- `revert: remove old preprocessing`
+
+Pull request title rules:
+
+- Use one of the approved type prefixes: `feat`, `fix`, `docs`, `ref`, `test`, `chore`, `perf`, `ci`, or `revert`.
+- Separate the type and description with a colon followed by one space.
+- Keep titles concise, descriptive, and consistent with the scope of the pull request.
+- Do not use the slash-separated branch format in pull request titles.
+- The pull request title does not have to be identical to the branch name or any individual commit message, but all must accurately describe the work.
+- Creating or modifying a pull request requires explicit user authorization under Section 3.
+
+### 4.5. Naming Convention Summary
+
+The separators differ by context. Never confuse them.
+
+| Context | Required format | Example |
+|---|---|---|
+| Branch name | `<type>/<short-description>` | `docs/add-agent-instructions` |
+| Commit message | `<type>: <short-description>` | `docs: add coding agent instructions` |
+| Pull request title | `<type>: <short-description>` | `docs: add coding agent instructions` |
+
+For the same task, the naming may look like this:
+
+- Branch: `feat/data-preprocessing`
+- Commit: `feat: add data preprocessing`
+- Pull request: `feat: add data preprocessing`
+
+The branch uses a slash with no spaces. Commit messages and pull request titles use a colon followed by a space.
+
+### 4.6. Pull Request Requirements
 
 - Every task branch must be proposed for merging into `main` through a pull request.
 - Keep pull requests focused on one coherent task.
@@ -98,27 +177,27 @@ Naming rules:
 - Do not bypass required checks or weaken project quality controls to get a passing result.
 - Do not merge a pull request unless the user explicitly authorizes that specific merge.
 
-### Agent Authorization and Git Safety
+### 4.7. Agent Authorization and Git Safety
 
-- Agents may recommend branch names and explain the proposed Git workflow.
+- Agents may recommend branch names, commit messages, pull request titles, and pull request descriptions.
 - Agents must not create, switch, or delete branches; stage files; commit; push; pull; merge; rebase; or perform other repository-changing Git operations without the user's explicit authorization.
 - Agents must not create, update, or merge pull requests, or trigger or modify GitHub Actions workflows, without the user's explicit authorization.
-- A request to implement a feature, fix a bug, or prepare a pull request does not automatically authorize all Git or GitHub operations.
+- A request to implement a feature, fix a bug, review code, or prepare a pull request does not automatically authorize all Git or GitHub operations.
 - Before any authorized operation, report relevant validation results and any outstanding issues.
 - If authorization is ambiguous, ask before proceeding.
 
-### Expected Completion Handoff
+### 4.8. Expected Completion Handoff
 
 When a task is implemented but not yet committed or submitted for review, report:
 
-1. The proposed branch name.
+1. The proposed branch name using the branch naming convention.
 2. A summary of the changes.
 3. Tests and quality checks run, including results.
 4. Any checks that failed or could not be run.
-5. A suggested commit message, if useful.
-6. A proposed pull request title and description.
+5. A suggested commit message using the commit message convention, if useful.
+6. A proposed pull request title and description using the pull request convention.
 
-Leave branch creation, staging, committing, pushing, and pull-request creation to the user unless explicitly authorized.
+Leave branch creation, staging, committing, pushing, and pull request creation to the user unless explicitly authorized.
 
 ## 5. Python Environment and Dependencies
 
