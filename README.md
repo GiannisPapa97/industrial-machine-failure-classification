@@ -41,8 +41,8 @@ to write to a different directory.
 ```python
 from machine_failure.data import load_raw, load_xy
 
-df = load_raw()    # all 14 columns, validated
-X, y = load_xy()   # 6 features and the `Machine failure` target
+df = load_raw()  # all 14 columns, validated
+X, y = load_xy()  # 6 features and the `Machine failure` target
 ```
 
 `load_raw` raises `DataValidationError` if columns are missing, values are null,
