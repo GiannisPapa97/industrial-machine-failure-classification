@@ -12,6 +12,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
+from machine_failure.baseline import build_baselines
 from machine_failure.data import RANDOM_STATE
 from machine_failure.preprocessing import build_preprocessor
 
@@ -59,3 +60,8 @@ def build_candidates() -> dict[str, Pipeline]:
         ),
         "qda": with_preprocessing(QuadraticDiscriminantAnalysis(reg_param=0.1)),
     }
+
+
+def build_all_models() -> dict[str, Pipeline]:
+    """The baselines (the references to beat) followed by the candidates."""
+    return {**build_baselines(), **build_candidates()}
