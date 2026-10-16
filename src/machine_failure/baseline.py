@@ -15,12 +15,12 @@ from machine_failure.evaluation import (
     cross_validate_model,
     summarize_scores,
 )
-from machine_failure.preprocessing import build_preprocessor
+from machine_failure.preprocessing import FeatureSet, build_preprocessor
 
 METRICS = list(SCORING)
 
 
-def build_baselines() -> dict[str, Pipeline]:
+def build_baselines(feature_set: FeatureSet = "all") -> dict[str, Pipeline]:
     """The two reference models every later model has to beat.
 
     - ``dummy``: ignores the features and always predicts the majority class. It
@@ -31,13 +31,13 @@ def build_baselines() -> dict[str, Pipeline]:
     return {
         "dummy": Pipeline(
             [
-                ("preprocess", build_preprocessor()),
+                ("preprocess", build_preprocessor(feature_set)),
                 ("model", DummyClassifier(strategy="prior")),
             ]
         ),
         "logistic_regression": Pipeline(
             [
-                ("preprocess", build_preprocessor()),
+                ("preprocess", build_preprocessor(feature_set)),
                 (
                     "model",
                     LogisticRegression(

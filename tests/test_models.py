@@ -15,9 +15,11 @@ from xgboost import XGBClassifier
 from machine_failure.evaluation import cross_validate_model
 from machine_failure.models import (
     SCALE_POS_WEIGHT,
+    build_all_models,
     build_candidates,
     with_preprocessing,
 )
+from machine_failure.preprocessing import FEATURE_SETS, FeatureSet, build_preprocessor
 
 EXPECTED_MODELS = {
     "random_forest": RandomForestClassifier,
@@ -108,3 +110,23 @@ def test_every_candidate_learns_a_clear_signal(name: str) -> None:
 
     assert len(scores) == 3
     assert scores["pr_auc"].mean() > 0.5  # the failure rate is 0.1
+
+
+@pytest.mark.parametrize("feature_set", FEATURE_SETS)
+def test_feature_set_reaches_every_model(feature_set: FeatureSet) -> None:
+    X, _ = make_xy()
+    expected = list(build_preprocessor(feature_set).fit_transform(X).columns)
+
+    for model in build_all_models(feature_set).values():
+        assert (
+            list(model.named_steps["preprocess"].fit_transform(X).columns) == expected
+        )
+
+
+def test_with_preprocessing_accepts_a_feature_set() -> None:
+    X, _ = make_xy()
+
+    pipeline = with_preprocessing(KNeighborsClassifier(), "computed")
+
+    columns = pipeline.named_steps["preprocess"].fit_transform(X).columns
+    assert list(columns) == ["temp_diff", "power", "strain"]

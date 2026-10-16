@@ -95,7 +95,9 @@ print(summarize_scores(scores))  # mean and std of each metric
 - `build_preprocessor` adds the derived features, one-hot encodes `Type` and
   standardizes the numeric columns (11 named columns out). Put it inside the
   model `Pipeline` so each cross-validation fold learns its own scaling from its
-  training part only.
+  training part only. Its `feature_set` argument chooses the features: `"all"`
+  (default), `"raw"` (`Type` and the five measurements) or `"computed"` (only
+  `temp_diff`, `power` and `strain`).
 - `cross_validate_model` runs stratified 5-fold cross-validation on the training
   set and returns one row of scores per fold. `summarize_scores` gives the mean
   and standard deviation of each metric.
@@ -173,6 +175,53 @@ How to read it:
   which is why PR-AUC is the main metric.
 - These are default settings with no tuning, so close rankings may change.
 
+## Feature set comparison
+
+```bash
+uv run python -m machine_failure.ablation
+```
+
+Cross-validates all 10 models on each of three feature sets, on the same
+training folds, and prints one table with the models as rows and the feature
+sets as columns. It takes about four minutes and reports progress on stderr. The
+test set is not used. Use `--metric` to show another metric (default `pr_auc`)
+and `--repeats N` for steadier estimates.
+
+- `raw`: `Type` and the five measurements (6 features)
+- `computed`: `temp_diff`, `power` and `strain` only (3 features)
+- `all`: the raw and computed features together (9 features)
+
+PR-AUC at the time of writing (5-fold, 8,000 training rows, 271 failures; mean
+± standard deviation across folds):
+
+| Model                  | raw           | computed      | all           |
+| ---------------------- | ------------- | ------------- | ------------- |
+| random_forest          | 0.755 ± 0.037 | 0.730 ± 0.045 | 0.890 ± 0.030 |
+| hist_gradient_boosting | 0.793 ± 0.044 | 0.702 ± 0.067 | 0.889 ± 0.017 |
+| xgboost                | 0.779 ± 0.055 | 0.603 ± 0.055 | 0.855 ± 0.029 |
+| extra_trees            | 0.696 ± 0.026 | 0.629 ± 0.058 | 0.824 ± 0.026 |
+| mlp                    | 0.733 ± 0.022 | 0.681 ± 0.066 | 0.795 ± 0.031 |
+| svm                    | 0.661 ± 0.025 | 0.542 ± 0.077 | 0.682 ± 0.025 |
+| knn                    | 0.517 ± 0.027 | 0.556 ± 0.086 | 0.615 ± 0.047 |
+| qda                    | 0.373 ± 0.042 | 0.555 ± 0.080 | 0.444 ± 0.042 |
+| logistic_regression    | 0.441 ± 0.033 | 0.324 ± 0.038 | 0.459 ± 0.047 |
+| dummy                  | 0.034 ± 0.000 | 0.034 ± 0.000 | 0.034 ± 0.000 |
+
+How to read it:
+
+- The derived features clearly help the tree-based models. Going from `raw` to
+  `all` raises PR-AUC by about 0.14 for random forest, 0.13 for extra trees, 0.10
+  for gradient boosting and 0.08 for XGBoost, several times the spread across
+  folds. The best results, random forest and gradient boosting at about 0.89,
+  both use all 9 features.
+- Logistic regression and SVM gain only 0.02, which is within the spread. A
+  plausible reason is that linear models cannot use threshold effects even when
+  given the combined quantities; this has not been tested.
+- The three computed features alone nearly match the raw features for random
+  forest (0.73 against 0.76), but combining them with the raw columns is better
+  than either. QDA is the exception and does best on the computed features alone.
+- Based on this, the remaining steps use all 9 features.
+
 ## Notebooks
 
 Exploration lives in `notebooks/`:
@@ -210,6 +259,7 @@ src/machine_failure/   package code
   baseline.py          baseline models and their comparison
   models.py            candidate models and the full model list
   comparison.py        compare all models, ordered by PR-AUC
+  ablation.py          compare all models across the feature sets
 tests/                 tests
 notebooks/             exploration notebooks
 data/raw/              downloaded dataset (not committed)
