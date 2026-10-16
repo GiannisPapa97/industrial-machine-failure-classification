@@ -32,6 +32,7 @@ def cross_validate_model(
     n_splits: int = N_SPLITS,
     n_repeats: int = 1,
     random_state: int = RANDOM_STATE,
+    n_jobs: int | None = None,
 ) -> pd.DataFrame:
     """Score ``model`` with stratified k-fold cross-validation.
 
@@ -39,12 +40,15 @@ def cross_validate_model(
     evaluation. ``model`` is cloned and refit on every training fold, so put the
     preprocessing inside it (a ``Pipeline``) to keep it from seeing the held-out
     fold. Returns one row per fold and one column per metric; ``n_repeats`` > 1
-    repeats the whole procedure with different shuffles for steadier estimates.
+    repeats the whole procedure with different shuffles for steadier estimates;
+    ``n_jobs`` runs the folds in parallel.
     """
     cv = RepeatedStratifiedKFold(
         n_splits=n_splits, n_repeats=n_repeats, random_state=random_state
     )
-    result = cross_validate(model, X, y, cv=cv, scoring=SCORING, error_score="raise")
+    result = cross_validate(
+        model, X, y, cv=cv, scoring=SCORING, error_score="raise", n_jobs=n_jobs
+    )
     return pd.DataFrame({name: result[f"test_{name}"] for name in SCORING})
 
 
