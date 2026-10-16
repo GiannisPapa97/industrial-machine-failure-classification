@@ -20,6 +20,7 @@ NUMERIC_FEATURES = [
     "Torque",
     "Tool wear",
 ]
+FEATURE_COLUMNS = [TYPE_COLUMN, *NUMERIC_FEATURES]
 TARGET_COLUMN = "Machine failure"
 FAILURE_MODE_COLUMNS = ["TWF", "HDF", "PWF", "OSF", "RNF"]
 
@@ -98,6 +99,19 @@ def load_raw(path: Path = DEFAULT_RAW_DIR / RAW_FILENAME) -> pd.DataFrame:
     df = pd.read_csv(path)
     validate_raw(df)
     return df
+
+
+def load_xy(
+    path: Path = DEFAULT_RAW_DIR / RAW_FILENAME,
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Load the dataset as features ``X`` and binary target ``y``.
+
+    ``X`` holds ``Type`` and the five numeric measurements. The identifier
+    columns and the failure-mode flags (TWF, HDF, PWF, OSF, RNF) are dropped:
+    the flags describe the failure itself, so using them would leak the target.
+    """
+    df = load_raw(path)
+    return df[FEATURE_COLUMNS].copy(), df[TARGET_COLUMN].copy()
 
 
 def main() -> None:

@@ -141,3 +141,34 @@ def test_load_raw_non_binary_column(tmp_path: Path, column: str) -> None:
 
     with pytest.raises(data.DataValidationError, match=f"only 0 or 1.*{column}"):
         data.load_raw(write_csv(df, tmp_path))
+
+
+def test_load_xy_splits_features_and_target(tmp_path: Path) -> None:
+    path = write_csv(make_raw_frame(), tmp_path)
+
+    X, y = data.load_xy(path)
+
+    assert list(X.columns) == data.FEATURE_COLUMNS
+    assert y.name == data.TARGET_COLUMN
+    assert y.tolist() == [0, 0, 1]
+    assert len(X) == len(y) == 3
+
+
+def test_load_xy_excludes_ids_flags_and_target(tmp_path: Path) -> None:
+    path = write_csv(make_raw_frame(), tmp_path)
+
+    X, _ = data.load_xy(path)
+
+    excluded = [
+        *data.ID_COLUMNS,
+        *data.FAILURE_MODE_COLUMNS,
+        data.TARGET_COLUMN,
+    ]
+    assert not set(excluded) & set(X.columns)
+
+
+def test_load_xy_validates_the_data(tmp_path: Path) -> None:
+    df = make_raw_frame().drop(columns=["Torque"])
+
+    with pytest.raises(data.DataValidationError):
+        data.load_xy(write_csv(df, tmp_path))
