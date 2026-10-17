@@ -1,0 +1,11 @@
+# Train the chosen final model on the training rows: the same as `uv run mf-train`.
+model = "random_forest"
+feature_set = "all"
+tuned = true
+threshold = 0.475
+output_path = "models/final_model.joblib"
+
+[data]
+path = "data/raw/ai4i2020.csv"
+test_size = 0.2
+random_state = 42

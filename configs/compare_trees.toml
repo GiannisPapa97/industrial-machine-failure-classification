@@ -1,0 +1,3 @@
+# Compare the baseline and the tree-based models, with steadier estimates.
+models = ["dummy", "random_forest", "extra_trees", "hist_gradient_boosting", "xgboost"]
+n_repeats = 3
