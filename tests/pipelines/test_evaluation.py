@@ -305,6 +305,7 @@ def test_other_data_is_refused(
         EvaluationPipeline(EvaluationConfig(model_path=saved_model)).run(confirm=True)
 
 
+@pytest.mark.usefixtures("synthetic_data")
 def test_other_held_out_rows_are_refused(
     saved_model: Path, make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch
 ) -> None:
