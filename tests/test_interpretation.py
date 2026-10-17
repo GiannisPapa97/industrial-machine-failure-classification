@@ -1,5 +1,6 @@
 import runpy
 import sys
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -16,28 +17,12 @@ from machine_failure.interpretation import (
 )
 from machine_failure.models import with_preprocessing
 
-
-def make_xy(n: int = 600, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features; only the torque tells failures apart."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 12,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
-def make_raw(n: int = 600) -> pd.DataFrame:
+def make_raw(make_xy: MakeXY, n: int = 600) -> pd.DataFrame:
     """The raw table: the features, the target and the failure-mode flags."""
-    X, y = make_xy(n)
+    X, y = make_xy(n, signal=12.0)
     raw = X.copy()
     raw["UID"] = range(n)
     raw["Product ID"] = "x"
@@ -57,8 +42,8 @@ def cheap_forest() -> Pipeline:
     return with_preprocessing(forest)
 
 
-def test_the_informative_feature_has_the_largest_importance() -> None:
-    X, y = make_xy()
+def test_the_informative_feature_has_the_largest_importance(make_xy: MakeXY) -> None:
+    X, y = make_xy(signal=12.0)
 
     importance = permutation_importances(cheap_forest(), X, y, n_repeats=3)
 
@@ -70,8 +55,8 @@ def test_the_informative_feature_has_the_largest_importance() -> None:
     )
 
 
-def test_importance_has_a_row_per_feature_sorted_with_a_spread() -> None:
-    X, y = make_xy()
+def test_importance_has_a_row_per_feature_sorted_with_a_spread(make_xy: MakeXY) -> None:
+    X, y = make_xy(signal=12.0)
 
     importance = permutation_importances(cheap_forest(), X, y, n_repeats=2)
 
@@ -81,8 +66,8 @@ def test_importance_has_a_row_per_feature_sorted_with_a_spread() -> None:
     assert (importance["std"] >= 0).all()
 
 
-def test_importance_is_reproducible_and_depends_on_the_seed() -> None:
-    X, y = make_xy()
+def test_importance_is_reproducible_and_depends_on_the_seed(make_xy: MakeXY) -> None:
+    X, y = make_xy(signal=12.0)
 
     first = permutation_importances(cheap_forest(), X, y, n_repeats=2)
     again = permutation_importances(cheap_forest(), X, y, n_repeats=2)
@@ -92,8 +77,8 @@ def test_importance_is_reproducible_and_depends_on_the_seed() -> None:
     assert not first["drop"].equals(other["drop"])
 
 
-def test_importance_does_not_change_the_given_model() -> None:
-    X, y = make_xy()
+def test_importance_does_not_change_the_given_model(make_xy: MakeXY) -> None:
+    X, y = make_xy(signal=12.0)
     model = cheap_forest()
 
     permutation_importances(model, X, y, n_repeats=2)
@@ -185,13 +170,13 @@ def test_an_empty_group_has_no_rows_instead_of_failing() -> None:
 
 
 @pytest.fixture
-def small_run(monkeypatch: pytest.MonkeyPatch) -> None:
+def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic table and a quick forest instead of the tuned model."""
     models = {"random_forest": cheap_forest()}
-    monkeypatch.setattr(interpretation, "load_raw", lambda: make_raw())
+    monkeypatch.setattr(interpretation, "load_raw", lambda: make_raw(make_xy))
     monkeypatch.setattr(interpretation, "build_tuned_models", lambda: models)
     # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_raw", lambda *args, **kwargs: make_raw())
+    monkeypatch.setattr(data, "load_raw", lambda *args, **kwargs: make_raw(make_xy))
     monkeypatch.setattr(tuned_models, "build_tuned_models", lambda: models)
 
 

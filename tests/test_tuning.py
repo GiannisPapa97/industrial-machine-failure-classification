@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -16,6 +17,8 @@ from machine_failure.tuning import (
     tune_model,
 )
 
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
+
 SPACE: dict[str, list[Any]] = {
     "model__n_estimators": [10, 20],
     "model__max_depth": [3, None],
@@ -31,34 +34,17 @@ def cheap_forest() -> Any:
     return with_preprocessing(forest)
 
 
-def make_xy(n: int = 400, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
-
-
 @pytest.fixture(scope="module")
-def search() -> RandomizedSearchCV:
-    X, y = make_xy()
+def search(make_xy: MakeXY) -> RandomizedSearchCV:
+    X, y = make_xy(n=400)
     return tune_model(cheap_forest(), SPACE, X, y, n_iter=4)
 
 
 def test_tune_model_returns_a_fitted_search_with_a_refit_best_model(
+    make_xy: MakeXY,
     search: RandomizedSearchCV,
 ) -> None:
-    X, _ = make_xy()
+    X, _ = make_xy(n=400)
 
     assert set(search.best_params_) == set(SPACE)
     assert search.best_estimator_.predict(X).shape == (len(X),)
@@ -101,8 +87,8 @@ def test_search_results_lists_settings_and_metrics_best_first(
     assert table.loc[0, "pr_auc_mean"] == pytest.approx(search.best_score_)
 
 
-def test_the_same_seed_gives_the_same_search() -> None:
-    X, y = make_xy()
+def test_the_same_seed_gives_the_same_search(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400)
     model = cheap_forest()
 
     first = tune_model(model, SPACE, X, y, n_iter=3)
@@ -113,8 +99,8 @@ def test_the_same_seed_gives_the_same_search() -> None:
     assert first.cv_results_["params"] != other.cv_results_["params"]
 
 
-def test_an_invalid_setting_raises_instead_of_being_ignored() -> None:
-    X, y = make_xy()
+def test_an_invalid_setting_raises_instead_of_being_ignored(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400)
 
     with pytest.raises(ValueError, match="not_a_setting"):
         tune_model(
@@ -126,8 +112,8 @@ def test_an_invalid_setting_raises_instead_of_being_ignored() -> None:
         )
 
 
-def test_nested_cross_validation_scores_each_outer_fold() -> None:
-    X, y = make_xy()
+def test_nested_cross_validation_scores_each_outer_fold(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400)
     model = cheap_forest()
 
     scores = nested_cross_validate(model, SPACE, X, y, n_iter=2, inner_splits=2)
@@ -137,8 +123,10 @@ def test_nested_cross_validation_scores_each_outer_fold() -> None:
     assert (scores["pr_auc"] > 0.5).all()  # the failure rate is 0.1
 
 
-def test_nested_cross_validation_uses_the_same_outer_folds_as_the_default() -> None:
-    X, y = make_xy()
+def test_nested_cross_validation_uses_the_same_outer_folds_as_the_default(
+    make_xy: MakeXY,
+) -> None:
+    X, y = make_xy(n=400)
     model = cheap_forest()
     fixed: dict[str, list[Any]] = {"model__n_estimators": [10]}
 
@@ -149,8 +137,10 @@ def test_nested_cross_validation_uses_the_same_outer_folds_as_the_default() -> N
     pd.testing.assert_frame_equal(nested, default)
 
 
-def test_nested_cross_validation_is_reproducible_and_can_run_in_parallel() -> None:
-    X, y = make_xy()
+def test_nested_cross_validation_is_reproducible_and_can_run_in_parallel(
+    make_xy: MakeXY,
+) -> None:
+    X, y = make_xy(n=400)
     model = cheap_forest()
 
     first = nested_cross_validate(model, SPACE, X, y, n_iter=2, inner_splits=2)

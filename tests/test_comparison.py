@@ -1,7 +1,7 @@
 import runpy
 import sys
+from collections.abc import Callable
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -10,23 +10,7 @@ from machine_failure.baseline import METRICS, build_baselines
 from machine_failure.comparison import sort_by_metric
 from machine_failure.models import build_all_models
 
-
-def make_xy(n: int = 600, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
 def make_table(pr_auc: list[float], recall: list[float]) -> pd.DataFrame:
@@ -64,7 +48,7 @@ def test_sort_by_metric_keeps_the_order_of_ties() -> None:
 
 
 @pytest.fixture
-def fast_run(monkeypatch: pytest.MonkeyPatch) -> None:
+def fast_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """Use a small synthetic dataset and only the two baselines, for speed."""
     monkeypatch.setattr(comparison, "load_xy", lambda: make_xy())
     monkeypatch.setattr(comparison, "build_all_models", build_baselines)

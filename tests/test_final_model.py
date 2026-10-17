@@ -1,9 +1,9 @@
 import runpy
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 import pytest
 from sklearn.ensemble import RandomForestClassifier
@@ -21,24 +21,7 @@ from machine_failure.final_model import (
 from machine_failure.models import with_preprocessing
 from machine_failure.search_spaces import TUNED_MODELS
 
-
-def make_xy(n: int = 400, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        },
-        index=np.arange(n) + 500,
-    )
-    return X, y.set_axis(X.index)
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
 def cheap_models() -> dict[str, Pipeline]:
@@ -47,8 +30,8 @@ def cheap_models() -> dict[str, Pipeline]:
 
 
 @pytest.fixture(scope="module")
-def trained() -> FinalModel:
-    X, y = make_xy()
+def trained(make_xy: MakeXY) -> FinalModel:
+    X, y = make_xy(n=400, index_offset=500)
     return train_final_model(X, y, "random_forest", 0.5)
 
 
@@ -57,8 +40,10 @@ def test_the_chosen_model_is_one_of_the_tuned_models() -> None:
     assert 0 < FINAL_THRESHOLD < 1
 
 
-def test_train_final_model_uses_the_tuned_settings_and_is_fitted() -> None:
-    X, y = make_xy()
+def test_train_final_model_uses_the_tuned_settings_and_is_fitted(
+    make_xy: MakeXY,
+) -> None:
+    X, y = make_xy(n=400, index_offset=500)
 
     final = train_final_model(X, y)
 
@@ -70,8 +55,8 @@ def test_train_final_model_uses_the_tuned_settings_and_is_fitted() -> None:
     assert hasattr(forest, "classes_")  # fitted
 
 
-def test_an_unknown_model_or_a_bad_threshold_raises() -> None:
-    X, y = make_xy()
+def test_an_unknown_model_or_a_bad_threshold_raises(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=500)
 
     with pytest.raises(ValueError, match="unknown model"):
         train_final_model(X, y, "dummy")
@@ -80,8 +65,10 @@ def test_an_unknown_model_or_a_bad_threshold_raises() -> None:
             train_final_model(X, y, threshold=threshold)
 
 
-def test_probabilities_are_aligned_with_the_input(trained: FinalModel) -> None:
-    X, y = make_xy()
+def test_probabilities_are_aligned_with_the_input(
+    make_xy: MakeXY, trained: FinalModel
+) -> None:
+    X, y = make_xy(n=400, index_offset=500)
 
     probability = trained.probability(X)
 
@@ -90,8 +77,10 @@ def test_probabilities_are_aligned_with_the_input(trained: FinalModel) -> None:
     assert probability[y == 1].mean() > probability[y == 0].mean()
 
 
-def test_predict_flags_rows_at_or_above_the_threshold(trained: FinalModel) -> None:
-    X, _ = make_xy()
+def test_predict_flags_rows_at_or_above_the_threshold(
+    make_xy: MakeXY, trained: FinalModel
+) -> None:
+    X, _ = make_xy(n=400, index_offset=500)
     probability = trained.probability(X)
     threshold = float(probability.iloc[0])  # exactly one row's probability
 
@@ -103,8 +92,10 @@ def test_predict_flags_rows_at_or_above_the_threshold(trained: FinalModel) -> No
     assert set(flagged.unique()) <= {0, 1}
 
 
-def test_the_threshold_controls_how_many_rows_are_flagged(trained: FinalModel) -> None:
-    X, _ = make_xy()
+def test_the_threshold_controls_how_many_rows_are_flagged(
+    make_xy: MakeXY, trained: FinalModel
+) -> None:
+    X, _ = make_xy(n=400, index_offset=500)
 
     low = FinalModel(trained.name, trained.model, 0.01).predict(X).sum()
     high = FinalModel(trained.name, trained.model, 0.99).predict(X).sum()
@@ -113,9 +104,9 @@ def test_the_threshold_controls_how_many_rows_are_flagged(trained: FinalModel) -
 
 
 def test_a_saved_model_loads_with_the_same_predictions(
-    trained: FinalModel, tmp_path: Path
+    make_xy: MakeXY, trained: FinalModel, tmp_path: Path
 ) -> None:
-    X, _ = make_xy()
+    X, _ = make_xy(n=400, index_offset=500)
     path = tmp_path / "models" / "final.joblib"
 
     save_final_model(trained, path)
@@ -155,12 +146,14 @@ def test_loading_something_else_raises(tmp_path: Path) -> None:
 
 
 @pytest.fixture
-def small_run(monkeypatch: pytest.MonkeyPatch) -> None:
+def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic dataset and a quick forest instead of the tuned one."""
-    monkeypatch.setattr(final_model, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(
+        final_model, "load_xy", lambda: make_xy(n=400, index_offset=500)
+    )
     monkeypatch.setattr(final_model, "build_tuned_models", cheap_models)
     # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400, index_offset=500))
     monkeypatch.setattr(tuned_models, "build_tuned_models", cheap_models)
     monkeypatch.setattr(models, "build_candidates", cheap_models)
 

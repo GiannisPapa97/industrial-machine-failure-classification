@@ -1,4 +1,5 @@
-import numpy as np
+from collections.abc import Callable
+
 import pandas as pd
 import pytest
 
@@ -8,23 +9,7 @@ from machine_failure.search_spaces import SEARCH_SPACES, TUNED_MODELS
 from machine_failure.tuned_models import TUNED_SETTINGS, build_tuned_models
 from machine_failure.tuning import SETTING_PREFIX
 
-
-def make_xy(n: int = 300, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
 def test_the_four_tuned_models_are_the_searched_ones() -> None:
@@ -69,8 +54,10 @@ def test_each_call_returns_new_unfitted_models() -> None:
 
 
 @pytest.mark.parametrize("feature_set", FEATURE_SETS)
-def test_feature_set_reaches_every_tuned_model(feature_set: FeatureSet) -> None:
-    X, _ = make_xy()
+def test_feature_set_reaches_every_tuned_model(
+    make_xy: MakeXY, feature_set: FeatureSet
+) -> None:
+    X, _ = make_xy(n=300)
     expected = list(build_preprocessor(feature_set).fit_transform(X).columns)
 
     for model in build_tuned_models(feature_set).values():
@@ -80,8 +67,10 @@ def test_feature_set_reaches_every_tuned_model(feature_set: FeatureSet) -> None:
 
 
 @pytest.mark.parametrize("name", TUNED_MODELS)
-def test_every_tuned_model_fits_and_predicts_probabilities(name: str) -> None:
-    X, y = make_xy()
+def test_every_tuned_model_fits_and_predicts_probabilities(
+    make_xy: MakeXY, name: str
+) -> None:
+    X, y = make_xy(n=300)
 
     model = build_tuned_models()[name].fit(X, y)
 

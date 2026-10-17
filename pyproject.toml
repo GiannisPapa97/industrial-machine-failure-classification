@@ -31,7 +31,7 @@ module-name = "machine_failure"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov --strict-markers"
+addopts = "--cov --strict-markers --import-mode=importlib"
 markers = [
     "integration: runs the real workflows on the downloaded dataset",
     "slow: takes more than about 30 seconds",
@@ -57,6 +57,10 @@ ignore = ["N803", "N806"]
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+# Name modules by their path, so tests/conftest.py and tests/integration/conftest.py
+# are different modules (tests.conftest and tests.integration.conftest).
+explicit_package_bases = true
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = ["ucimlrepo", "sklearn", "sklearn.*", "joblib"]

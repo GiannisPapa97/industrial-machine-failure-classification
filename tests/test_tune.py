@@ -1,8 +1,8 @@
 import runpy
 import sys
+from collections.abc import Callable
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import pytest
 from sklearn.ensemble import RandomForestClassifier
@@ -16,6 +16,8 @@ from machine_failure.tune import (
     format_results,
     tune_models,
 )
+
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 SMALL_SPACE: dict[str, list[Any]] = {
     "model__n_estimators": [10, 20],
@@ -31,43 +33,25 @@ def cheap_candidates() -> dict[str, Pipeline]:
     return {"random_forest": models.with_preprocessing(forest)}
 
 
-def make_xy(n: int = 400, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
-
-
 @pytest.fixture
-def small_run(monkeypatch: pytest.MonkeyPatch) -> None:
+def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """One cheap model, a tiny search space and a small synthetic dataset."""
     spaces = {"random_forest": SMALL_SPACE}
     monkeypatch.setattr(tune, "SEARCH_SPACES", spaces)
     monkeypatch.setattr(tune, "TUNED_MODELS", ("random_forest",))
-    monkeypatch.setattr(tune, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(tune, "load_xy", lambda: make_xy(n=400))
     monkeypatch.setattr(tune, "build_candidates", cheap_candidates)
     # Running the module as a script re-imports it, so patch the sources too.
     monkeypatch.setattr(search_spaces, "SEARCH_SPACES", spaces)
     monkeypatch.setattr(search_spaces, "TUNED_MODELS", ("random_forest",))
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400))
     monkeypatch.setattr(models, "build_candidates", cheap_candidates)
 
 
 @pytest.fixture(scope="module")
-def results() -> dict[str, TuningResult]:
+def results(make_xy: MakeXY) -> dict[str, TuningResult]:
     """Tune once and share the result between the tests that only read it."""
-    X, y = make_xy()
+    X, y = make_xy(n=400)
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(tune, "SEARCH_SPACES", {"random_forest": SMALL_SPACE})
         patch.setattr(tune, "build_candidates", cheap_candidates)
@@ -85,9 +69,9 @@ def test_tune_models_scores_default_and_tuned_on_the_same_folds(
 
 
 def test_tune_models_reports_progress(
-    small_run: None, capsys: pytest.CaptureFixture[str]
+    make_xy: MakeXY, small_run: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    X, y = make_xy()
+    X, y = make_xy(n=400)
 
     tune_models(X, y, ("random_forest",), n_iter=2, inner_splits=2, verbose=True)
 
