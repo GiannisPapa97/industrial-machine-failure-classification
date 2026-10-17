@@ -66,14 +66,27 @@ jobs:
       - name: Pytest
         run: uv run pytest -m "not integration"
 
+      # Coverage is checked per package (the minimum is in pyproject.toml). The
+      # report is written first, so it is shown and commented even when a package
+      # is below the minimum; the failure comes in the last step.
       - name: Coverage summary
+        id: coverage
         run: |
+          status=0
+          uv run python scripts/coverage_by_package.py > "$RUNNER_TEMP/by-package.md" 2>&1 || status=$?
           {
-            echo "### Coverage"
+            echo "### Coverage by package"
+            echo
+            cat "$RUNNER_TEMP/by-package.md"
+            echo
+            echo "<details><summary>Coverage by file</summary>"
             echo
             uv run coverage report --format=markdown
+            echo
+            echo "</details>"
           } > "$RUNNER_TEMP/coverage.md"
           cat "$RUNNER_TEMP/coverage.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
 
       # Forked PRs get a read-only token, so only comment on same-repo PRs.
       - name: Coverage comment
@@ -87,6 +100,12 @@ jobs:
         run: >-
           gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/coverage.md"
           --edit-last --create-if-none
+
+      - name: Check the coverage minimum
+        if: steps.coverage.outputs.status != '0'
+        run: |
+          echo "::error::A package is below the coverage minimum, see the coverage summary."
+          exit 1
 
   # Runs the real workflows on the real dataset and compares the results with the
   # recorded numbers, so a refactoring that changes a result is caught. It is a
@@ -110,7 +129,7 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: data/raw/ai4i2020.csv
-          key: dataset-ai4i2020-${{ hashFiles('src/machine_failure/data.py') }}
+          key: dataset-ai4i2020-${{ hashFiles('src/machine_failure/data/download.py') }}
 
       # Skips the download when the cache already restored the file.
       - name: Download the dataset
