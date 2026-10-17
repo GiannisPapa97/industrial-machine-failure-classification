@@ -8,7 +8,10 @@ from machine_failure.config.schemas import (
     DataConfig,
     EvaluationConfig,
     InferenceConfig,
+    InterpretationConfig,
+    ThresholdsConfig,
     TrainingConfig,
+    TuningConfig,
 )
 
 __all__ = [
@@ -18,7 +21,10 @@ __all__ = [
     "DataConfig",
     "EvaluationConfig",
     "InferenceConfig",
+    "InterpretationConfig",
+    "ThresholdsConfig",
     "TrainingConfig",
+    "TuningConfig",
     "load_config",
     "load_or_default",
 ]

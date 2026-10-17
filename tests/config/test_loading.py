@@ -7,6 +7,7 @@ from machine_failure.config import (
     ConfigError,
     DataConfig,
     EvaluationConfig,
+    ThresholdsConfig,
     TrainingConfig,
     load_config,
     load_or_default,
@@ -144,3 +145,11 @@ def test_load_or_default_applies_the_options_that_were_given(tmp_path: Path) -> 
 def test_load_or_default_validates_the_result() -> None:
     with pytest.raises(ConfigError, match="unknown model"):
         load_or_default(None, TrainingConfig, model="nope")
+
+
+def test_an_optional_path_is_read(tmp_path: Path) -> None:
+    config = load_config(
+        write(tmp_path, 'plot = "pr.png"\nrecall_targets = [0.8]\n'), ThresholdsConfig
+    )
+
+    assert (config.plot, config.recall_targets) == (Path("pr.png"), (0.8,))
