@@ -10,6 +10,7 @@ import machine_failure
 ROOT = Path(machine_failure.__file__).parent
 # From the bottom of the stack to the top.
 LAYERS = [
+    "cli",
     "data",
     "features",
     "evaluation",
