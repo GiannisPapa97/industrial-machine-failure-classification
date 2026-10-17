@@ -13,6 +13,13 @@ SearchSpace = dict[str, list[Any]]
 Role = Literal["baseline", "candidate"]
 
 
+def with_preprocessing(
+    model: BaseEstimator, feature_set: FeatureSet = "all"
+) -> Pipeline:
+    """Put ``model`` behind the preprocessing pipeline for ``feature_set``."""
+    return Pipeline([("preprocess", build_preprocessor(feature_set)), ("model", model)])
+
+
 class Model(ABC):
     """A model the project can compare, tune and train.
 
@@ -46,12 +53,7 @@ class Model(ABC):
 
         ``settings`` override estimator settings, by bare name (``max_depth``).
         """
-        pipeline = Pipeline(
-            [
-                ("preprocess", build_preprocessor(feature_set)),
-                ("model", self.make_estimator()),
-            ]
-        )
+        pipeline = with_preprocessing(self.make_estimator(), feature_set)
         if settings:
             pipeline.set_params(
                 **{f"{SETTING_PREFIX}{key}": value for key, value in settings.items()}

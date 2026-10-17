@@ -14,7 +14,8 @@ from sklearn.svm import SVC
 from xgboost import XGBClassifier
 
 from machine_failure.data import RANDOM_STATE
-from machine_failure.features import FeatureSet, build_preprocessor
+from machine_failure.features import FeatureSet
+from machine_failure.models.base import Model, all_models, register
 from machine_failure.models.baselines import build_baselines
 
 # Roughly the number of normal rows per failure (about 28.5 in the training
@@ -22,11 +23,90 @@ from machine_failure.models.baselines import build_baselines
 SCALE_POS_WEIGHT = 28.5
 
 
-def with_preprocessing(
-    model: BaseEstimator, feature_set: FeatureSet = "all"
-) -> Pipeline:
-    """Put ``model`` behind the preprocessing pipeline for ``feature_set``."""
-    return Pipeline([("preprocess", build_preprocessor(feature_set)), ("model", model)])
+@register
+class RandomForestModel(Model):
+    name = "random_forest"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return RandomForestClassifier(
+            n_estimators=300,
+            class_weight="balanced_subsample",
+            random_state=RANDOM_STATE,
+        )
+
+
+@register
+class ExtraTreesModel(Model):
+    name = "extra_trees"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return ExtraTreesClassifier(
+            n_estimators=300, class_weight="balanced", random_state=RANDOM_STATE
+        )
+
+
+@register
+class HistGradientBoostingModel(Model):
+    name = "hist_gradient_boosting"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return HistGradientBoostingClassifier(
+            class_weight="balanced", random_state=RANDOM_STATE
+        )
+
+
+@register
+class XGBoostModel(Model):
+    name = "xgboost"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return XGBClassifier(
+            n_estimators=300,
+            scale_pos_weight=SCALE_POS_WEIGHT,
+            random_state=RANDOM_STATE,
+        )
+
+
+@register
+class KNNModel(Model):
+    name = "knn"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return KNeighborsClassifier(n_neighbors=15)
+
+
+@register
+class SVMModel(Model):
+    name = "svm"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return SVC(class_weight="balanced")
+
+
+@register
+class MLPModel(Model):
+    name = "mlp"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return MLPClassifier(
+            hidden_layer_sizes=(32, 16), max_iter=1000, random_state=RANDOM_STATE
+        )
+
+
+@register
+class QDAModel(Model):
+    name = "qda"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return QuadraticDiscriminantAnalysis(reg_param=0.1)
 
 
 def build_candidates(feature_set: FeatureSet = "all") -> dict[str, Pipeline]:
@@ -41,45 +121,9 @@ def build_candidates(feature_set: FeatureSet = "all") -> dict[str, Pipeline]:
 
     ``feature_set`` chooses the features, as in ``build_preprocessor``.
     """
-
-    def prepare(model: BaseEstimator) -> Pipeline:
-        return with_preprocessing(model, feature_set)
-
     return {
-        "random_forest": prepare(
-            RandomForestClassifier(
-                n_estimators=300,
-                class_weight="balanced_subsample",
-                random_state=RANDOM_STATE,
-            )
-        ),
-        "extra_trees": prepare(
-            ExtraTreesClassifier(
-                n_estimators=300,
-                class_weight="balanced",
-                random_state=RANDOM_STATE,
-            )
-        ),
-        "hist_gradient_boosting": prepare(
-            HistGradientBoostingClassifier(
-                class_weight="balanced", random_state=RANDOM_STATE
-            )
-        ),
-        "xgboost": prepare(
-            XGBClassifier(
-                n_estimators=300,
-                scale_pos_weight=SCALE_POS_WEIGHT,
-                random_state=RANDOM_STATE,
-            )
-        ),
-        "knn": prepare(KNeighborsClassifier(n_neighbors=15)),
-        "svm": prepare(SVC(class_weight="balanced")),
-        "mlp": prepare(
-            MLPClassifier(
-                hidden_layer_sizes=(32, 16), max_iter=1000, random_state=RANDOM_STATE
-            )
-        ),
-        "qda": prepare(QuadraticDiscriminantAnalysis(reg_param=0.1)),
+        name: model.build(feature_set)
+        for name, model in all_models("candidate").items()
     }
 
 

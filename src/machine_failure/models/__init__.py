@@ -7,13 +7,13 @@ from machine_failure.models.base import (
     all_models,
     get_model,
     register,
+    with_preprocessing,
 )
 from machine_failure.models.baselines import build_baselines
 from machine_failure.models.candidates import (
     SCALE_POS_WEIGHT,
     build_all_models,
     build_candidates,
-    with_preprocessing,
 )
 from machine_failure.models.final import (
     FINAL_MODEL,
