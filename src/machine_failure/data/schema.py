@@ -1,5 +1,6 @@
 """The columns of the AI4I 2020 dataset and the checks that its values are valid."""
 
+import numpy as np
 import pandas as pd
 from pandas.api import types as pdt
 
@@ -55,11 +56,7 @@ def validate_raw(df: pd.DataFrame) -> None:
     if wrong_dtype:
         raise DataValidationError(f"columns have unexpected dtypes: {wrong_dtype}")
 
-    bad_types = set(df[TYPE_COLUMN].unique()) - TYPE_VALUES
-    if bad_types:
-        raise DataValidationError(
-            f"{TYPE_COLUMN!r} has unexpected values: {sorted(bad_types)}"
-        )
+    check_type_values(df)
 
     non_binary = [c for c in BINARY_COLUMNS if not df[c].isin([0, 1]).all()]
     if non_binary:
@@ -89,8 +86,23 @@ def validate_features(df: pd.DataFrame) -> None:
     if not_numeric:
         raise DataValidationError(f"feature columns must be numeric: {not_numeric}")
 
+    not_finite = [c for c in NUMERIC_FEATURES if not np.isfinite(df[c]).all()]
+    if not_finite:
+        raise DataValidationError(
+            f"feature columns contain infinite values: {not_finite}"
+        )
+
+    check_type_values(df)
+
+
+def check_type_values(df: pd.DataFrame) -> None:
+    """Raise DataValidationError unless every ``Type`` is one of ``TYPE_VALUES``.
+
+    The unexpected values are listed as text, so values of mixed kinds (a number
+    among the letters) are reported instead of failing to sort.
+    """
     bad_types = set(df[TYPE_COLUMN].unique()) - TYPE_VALUES
     if bad_types:
         raise DataValidationError(
-            f"{TYPE_COLUMN!r} has unexpected values: {sorted(bad_types)}"
+            f"{TYPE_COLUMN!r} has unexpected values: {sorted(map(str, bad_types))}"
         )

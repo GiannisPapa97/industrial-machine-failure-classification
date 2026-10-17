@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -48,3 +49,14 @@ def test_non_numeric_measurements_are_named() -> None:
 def test_an_unknown_machine_type_is_named() -> None:
     with pytest.raises(DataValidationError, match="'X'"):
         validate_features(rows().assign(Type=["L", "X", "H"]))
+
+
+@pytest.mark.parametrize("value", [np.inf, -np.inf])
+def test_infinite_measurements_are_named(value: float) -> None:
+    with pytest.raises(DataValidationError, match="infinite values.*Torque"):
+        validate_features(rows().assign(Torque=[40.0, value, 41.0]))
+
+
+def test_unexpected_types_of_mixed_kinds_are_listed() -> None:
+    with pytest.raises(DataValidationError, match=r"\['5', 'X'\]"):
+        validate_features(rows().assign(Type=["L", "X", 5]))

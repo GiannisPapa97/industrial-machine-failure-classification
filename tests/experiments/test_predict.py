@@ -2,6 +2,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -88,3 +89,21 @@ def test_main_rejects_rows_without_the_feature_columns(
 
     assert exit_info.value.code == 1
     assert capsys.readouterr().err.startswith("error: missing feature columns")
+
+
+def test_main_rejects_infinite_values_in_one_line(
+    files: tuple[Path, Path], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    model, rows = files
+    bad = tmp_path / "inf.csv"
+    table = pd.read_csv(rows)
+    table.loc[0, "Torque"] = np.inf
+    table.to_csv(bad, index=False)
+
+    with pytest.raises(SystemExit) as exit_info:
+        app.main(["predict", str(bad), "--model-path", str(model)])
+
+    assert exit_info.value.code == 1
+    assert capsys.readouterr().err == (
+        "error: feature columns contain infinite values: ['Torque']\n"
+    )
