@@ -57,6 +57,10 @@ ignore = ["N803", "N806"]
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+# Name modules by their path, so tests/conftest.py and tests/integration/conftest.py
+# are different modules (tests.conftest and tests.integration.conftest).
+explicit_package_bases = true
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = ["ucimlrepo", "sklearn", "sklearn.*", "joblib"]
