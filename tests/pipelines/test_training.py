@@ -11,7 +11,7 @@ from machine_failure.models import (
     FinalModel,
     load_final_model,
 )
-from machine_failure.pipelines import TrainingPipeline, TrainingResult, splits
+from machine_failure.pipelines import TrainingPipeline, TrainingResult, splits, training
 
 
 def test_describe_says_what_was_trained() -> None:
@@ -53,12 +53,12 @@ def test_the_data_config_decides_the_split(
         return make_xy(n=400)
 
     monkeypatch.setattr(splits, "load_xy", load)
-    config = TrainingConfig(data=DataConfig(path=Path("my.csv"), test_size=0.5))
+    config = TrainingConfig(data=DataConfig(path=Path("my.csv")))
 
     result = TrainingPipeline(config).run()
 
     assert seen == [Path("my.csv")]
-    assert result.n_rows == 200
+    assert result.n_rows == 320  # the fixed split: 80% for training
 
 
 @pytest.mark.usefixtures("synthetic_data")
@@ -80,7 +80,7 @@ def test_the_tuned_model_carries_the_tuned_settings() -> None:
 
 
 def test_an_untuned_model_keeps_its_default_settings() -> None:
-    config = TrainingConfig(model="random_forest", tuned=False)
+    config = TrainingConfig(model="random_forest", tuned=False, threshold=0.5)
 
     assert (
         TrainingPipeline(config).build_model().get_params()["model__max_depth"] is None
@@ -97,7 +97,9 @@ def test_the_feature_set_decides_the_inputs_the_model_sees(make_xy: MakeXY) -> N
     X, y = make_xy(n=300)
     widths = {}
     for feature_set in FEATURE_SETS:
-        config = TrainingConfig(model="knn", tuned=False, feature_set=feature_set)
+        config = TrainingConfig(
+            model="knn", tuned=False, threshold=0.5, feature_set=feature_set
+        )
         final = TrainingPipeline(config).fit(X, y).final
         widths[feature_set] = final.model.named_steps["model"].n_features_in_
 
@@ -107,7 +109,9 @@ def test_the_feature_set_decides_the_inputs_the_model_sees(make_xy: MakeXY) -> N
 def test_save_writes_the_model_and_refuses_to_overwrite(
     make_xy: MakeXY, tmp_path: Path
 ) -> None:
-    config = TrainingConfig(model="knn", tuned=False, output_path=tmp_path / "m.joblib")
+    config = TrainingConfig(
+        model="knn", tuned=False, threshold=0.5, output_path=tmp_path / "m.joblib"
+    )
     pipeline = TrainingPipeline(config)
     result = pipeline.fit(*make_xy(n=300))
 
@@ -118,3 +122,41 @@ def test_save_writes_the_model_and_refuses_to_overwrite(
     with pytest.raises(FileExistsError):
         pipeline.save(result)
     assert pipeline.save(result, overwrite=True) == path
+
+
+def test_the_trained_model_gets_the_threshold_of_its_own_model(make_xy: MakeXY) -> None:
+    final = TrainingPipeline(TrainingConfig(model="xgboost")).fit(*make_xy(n=300)).final
+
+    assert final.threshold == 0.654
+
+
+@pytest.mark.usefixtures("synthetic_data")
+def test_run_records_how_the_model_was_made() -> None:
+    metadata = TrainingPipeline().run().final.metadata
+
+    assert metadata["config"]["model"] == "random_forest"
+    assert metadata["config"]["output_path"] == str(TrainingConfig().output_path)
+    assert metadata["threshold_source"] == "the tuned random_forest model's own"
+    assert (metadata["training_rows"], metadata["training_failures"]) == (320, 32)
+    assert set(metadata["split"]) == {"data_sha256", "test_rows_sha256"}
+    versions = metadata["versions"]
+    assert {"python", "scikit-learn", "xgboost-cpu", "numpy", "pandas"} <= set(versions)
+    assert "not installed" not in versions.values()
+    assert metadata["trained_at"].endswith("+00:00")
+
+
+def test_a_threshold_set_in_the_config_is_recorded_as_such(make_xy: MakeXY) -> None:
+    config = TrainingConfig(model="knn", tuned=False, threshold=0.5)
+
+    metadata = TrainingPipeline(config).fit(*make_xy(n=300)).final.metadata
+
+    assert metadata["threshold_source"] == "set in the config"
+    assert "split" not in metadata  # fit alone does not know the held-out rows
+
+
+def test_a_missing_package_is_recorded_as_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(training, "PROJECT", "no-such-distribution-here")
+
+    assert training.library_versions()["no-such-distribution-here"] == "not installed"

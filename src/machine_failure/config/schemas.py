@@ -14,13 +14,11 @@ from machine_failure.data import (
     DEFAULT_RAW_DIR,
     RANDOM_STATE,
     RAW_FILENAME,
-    TEST_SIZE,
 )
 from machine_failure.evaluation import N_SPLITS
 from machine_failure.features import FEATURE_SETS, FeatureSet
 from machine_failure.models import (
     FINAL_MODEL,
-    FINAL_THRESHOLD,
     MODEL_PATH,
     all_models,
     get_model,
@@ -45,17 +43,16 @@ def check_feature_set(feature_set: str) -> None:
 
 @dataclass(frozen=True)
 class DataConfig:
-    """Where the dataset is and how it is split into training and test rows."""
+    """Where the dataset is.
+
+    The split into training and held-out test rows is not a setting: it is fixed
+    for the project (``TEST_SIZE`` and ``RANDOM_STATE`` in ``machine_failure.data``).
+    Every choice so far (model, settings, features, threshold) was made on the
+    same training rows, so a different split would put rows that shaped those
+    choices into the test set.
+    """
 
     path: Path = DEFAULT_RAW_DIR / RAW_FILENAME
-    test_size: float = TEST_SIZE
-    random_state: int = RANDOM_STATE
-
-    def __post_init__(self) -> None:
-        if not 0 < self.test_size < 1:
-            raise ConfigError(
-                f"test_size must be between 0 and 1, not {self.test_size}"
-            )
 
 
 @dataclass(frozen=True)
@@ -63,13 +60,15 @@ class TrainingConfig:
     """Which model to train on the training rows, and where to save it.
 
     ``tuned`` trains the model with its tuned settings (only models that have
-    them); ``threshold`` turns its probabilities into failure alerts.
+    them). ``threshold`` turns its probabilities into failure alerts; left out, it
+    is the tuned model's own threshold (``Model.threshold``). Thresholds do not
+    carry over between models, so an untuned model needs one set explicitly.
     """
 
     model: str = FINAL_MODEL
     feature_set: FeatureSet = "all"
     tuned: bool = True
-    threshold: float = FINAL_THRESHOLD
+    threshold: float | None = None
     output_path: Path = MODEL_PATH
     data: DataConfig = field(default_factory=DataConfig)
 
@@ -78,10 +77,23 @@ class TrainingConfig:
         check_feature_set(self.feature_set)
         if self.tuned and not get_model(self.model).is_tuned:
             raise ConfigError(f"{self.model} has no tuned settings; set tuned = false")
-        if not 0 < self.threshold < 1:
+        if self.threshold is None:
+            if not self.tuned or get_model(self.model).threshold is None:
+                raise ConfigError(
+                    f"{self.model} has no threshold of its own when it is not "
+                    "tuned; set threshold"
+                )
+        elif not 0 < self.threshold < 1:
             raise ConfigError(
                 f"threshold must be between 0 and 1, not {self.threshold}"
             )
+
+    @property
+    def decision_threshold(self) -> float:
+        """The threshold to use: the one set, or the tuned model's own."""
+        if self.threshold is not None:
+            return self.threshold
+        return get_model(self.model).own_threshold()
 
 
 def all_model_names() -> tuple[str, ...]:

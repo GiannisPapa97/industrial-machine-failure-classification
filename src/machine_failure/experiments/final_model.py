@@ -26,7 +26,8 @@ def main() -> None:
     parser.add_argument(
         "--threshold",
         type=float,
-        help=f"decision threshold (default: {FINAL_THRESHOLD})",
+        help="decision threshold (default: the tuned model's own, "
+        f"{FINAL_THRESHOLD} for {FINAL_MODEL})",
     )
     parser.add_argument(
         "--output",

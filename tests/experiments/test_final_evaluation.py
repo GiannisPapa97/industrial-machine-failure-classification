@@ -10,6 +10,7 @@ from machine_failure.config import EvaluationConfig, TrainingConfig, load_config
 from machine_failure.data import split_train_test
 from machine_failure.experiments import final_evaluation
 from machine_failure.pipelines import TrainingPipeline, evaluation, splits
+from machine_failure.pipelines.splits import split_fingerprint
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -22,8 +23,11 @@ def saved_model(make_xy: MakeXY, tmp_path: Path) -> Path:
         model="knn", tuned=False, threshold=0.5, output_path=tmp_path / "final.joblib"
     )
     pipeline = TrainingPipeline(config)
-    X_train, _, y_train, _ = split_train_test(X, y)
-    return pipeline.save(pipeline.fit(X_train, y_train))
+    parts = split_train_test(X, y)
+    X_train, _, y_train, _ = parts
+    return pipeline.save(
+        pipeline.fit(X_train, y_train, split=split_fingerprint(*parts))
+    )
 
 
 @pytest.fixture
@@ -93,7 +97,7 @@ def test_main_reads_the_settings_from_a_config_file(
     config = tmp_path / "evaluate.toml"
     config.write_text(
         f'model_path = "{saved_model}"\nn_bootstrap = 30\nreference = false\n'
-        "[data]\ntest_size = 0.5\n"
+        '[data]\npath = "other.csv"\n'
     )
     argv = ["final_evaluation", "--confirm", "--config", str(config)]
     monkeypatch.setattr(sys, "argv", argv)
@@ -101,7 +105,7 @@ def test_main_reads_the_settings_from_a_config_file(
     final_evaluation.main()
 
     out = capsys.readouterr().out
-    assert "on the test set (300 rows, 30 failures)" in out  # 50% of 600 rows
+    assert "on the test set (120 rows, 12 failures)" in out  # 20% of 600 rows
     assert "cross-validation" not in out
 
 

@@ -7,11 +7,14 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
+from machine_failure.cli import UserError
 from machine_failure.config import EvaluationConfig, TrainingConfig
 from machine_failure.data import split_train_test
+from machine_failure.evaluation import out_of_fold_predictions
 from machine_failure.models import FinalModel, load_final_model, with_preprocessing
 from machine_failure.pipelines import (
     EvaluationPipeline,
+    SplitMismatchError,
     TrainingPipeline,
     UnconfirmedTestSetError,
     splits,
@@ -24,8 +27,8 @@ from machine_failure.pipelines.evaluation import (
     evaluate_final,
     format_evaluation,
     metrics_at_threshold,
-    reference_model,
 )
+from machine_failure.pipelines.splits import split_fingerprint
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -120,14 +123,11 @@ def test_the_intervals_are_reproducible_and_depend_on_the_seed(make_xy: MakeXY) 
 
 def test_cross_validated_reference_uses_out_of_fold_predictions(
     make_xy: MakeXY,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        final_evaluation, "reference_model", lambda name: cheap_models()[name]
-    )
     X, y = make_xy(signal=6.0)
+    final = FinalModel("random_forest", cheap_models()["random_forest"], 0.5)
 
-    reference = cross_validated_reference("random_forest", 0.5, X, y)
+    reference = cross_validated_reference(final, X, y)
 
     assert set(METRICS) <= set(reference)
     assert reference["tp"] + reference["fn"] == int(y.sum())
@@ -169,8 +169,11 @@ def saved_model(make_xy: MakeXY, tmp_path: Path) -> Path:
         model="knn", tuned=False, threshold=0.5, output_path=tmp_path / "final.joblib"
     )
     pipeline = TrainingPipeline(config)
-    X_train, _, y_train, _ = split_train_test(X, y)
-    return pipeline.save(pipeline.fit(X_train, y_train))
+    parts = split_train_test(X, y)
+    X_train, _, y_train, _ = parts
+    return pipeline.save(
+        pipeline.fit(X_train, y_train, split=split_fingerprint(*parts))
+    )
 
 
 @pytest.fixture
@@ -245,9 +248,74 @@ def test_a_missing_model_points_to_the_command_that_creates_it(
         EvaluationPipeline(config).run(confirm=True)
 
 
-def test_the_reference_model_is_tuned_when_it_can_be() -> None:
-    tuned = reference_model("random_forest").get_params()
-    default = reference_model("knn").get_params()
+def test_the_reference_refits_a_copy_of_the_saved_model(
+    make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # an untuned forest on the raw features: not what the registry would build
+    X, y = make_xy(signal=6.0)
+    config = TrainingConfig(
+        model="random_forest", tuned=False, feature_set="raw", threshold=0.5
+    )
+    final = TrainingPipeline(config).fit(X, y).final
+    fitted: list[Pipeline] = []
 
-    assert tuned["model__max_depth"] == 8
-    assert default["model__n_neighbors"] == 15
+    def record(model: Pipeline, *args: object, **kwargs: object) -> pd.DataFrame:
+        fitted.append(model)
+        return out_of_fold_predictions(model, X, y)
+
+    monkeypatch.setattr(final_evaluation, "out_of_fold_predictions", record)
+
+    cross_validated_reference(final, X, y)
+
+    (used,) = fitted
+    assert used is not final.model  # a copy: the saved model is left untouched
+    assert repr(used) == repr(final.model)  # same estimator, settings and features
+    assert used.get_params()["model__max_depth"] is None  # not the tuned 8
+
+
+@pytest.mark.usefixtures("synthetic_data")
+def test_a_model_without_a_split_record_is_refused_before_scoring(
+    make_xy: MakeXY, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    X, y = make_xy(signal=6.0)
+    X_train, _, y_train, _ = split_train_test(X, y)
+    config = TrainingConfig(
+        model="knn", tuned=False, threshold=0.5, output_path=tmp_path / "old.joblib"
+    )
+    trainer = TrainingPipeline(config)
+    path = trainer.save(trainer.fit(X_train, y_train))  # no split recorded
+
+    def must_not_run(*args: object, **kwargs: object) -> None:
+        raise AssertionError("nothing may be scored")
+
+    monkeypatch.setattr(final_evaluation, "evaluate_final", must_not_run)
+
+    with pytest.raises(SplitMismatchError, match="mf-train --overwrite"):
+        EvaluationPipeline(EvaluationConfig(model_path=path)).run(confirm=True)
+
+
+def test_other_data_is_refused(
+    saved_model: Path, make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    X, y = make_xy(signal=6.0)
+    other = X.assign(Torque=X["Torque"] + 1.0)
+    monkeypatch.setattr(splits, "load_xy", lambda path: (other, y))
+
+    with pytest.raises(SplitMismatchError, match="dataset differs"):
+        EvaluationPipeline(EvaluationConfig(model_path=saved_model)).run(confirm=True)
+
+
+@pytest.mark.usefixtures("synthetic_data")
+def test_other_held_out_rows_are_refused(
+    saved_model: Path, make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    X, y = make_xy(signal=6.0)
+    other_split = split_train_test(X, y, random_state=7)
+    monkeypatch.setattr(splits, "split_train_test", lambda X, y: other_split)
+
+    with pytest.raises(SplitMismatchError, match="not the ones held out"):
+        EvaluationPipeline(EvaluationConfig(model_path=saved_model)).run(confirm=True)
+
+
+def test_a_split_mismatch_is_reported_in_one_line() -> None:
+    assert issubclass(SplitMismatchError, UserError)

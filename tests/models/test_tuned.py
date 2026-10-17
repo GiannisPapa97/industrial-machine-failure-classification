@@ -6,12 +6,14 @@ import pytest
 from machine_failure.evaluation import SETTING_PREFIX
 from machine_failure.features import FEATURE_SETS, FeatureSet, build_preprocessor
 from machine_failure.models import (
+    FINAL_THRESHOLD,
     SEARCH_SPACES,
     TUNED_MODELS,
     TUNED_SETTINGS,
     all_models,
     build_candidates,
     build_tuned_models,
+    get_model,
 )
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
@@ -97,3 +99,17 @@ def test_search_spaces_and_settings_come_from_the_model_classes() -> None:
         for name, model in all_models().items()
         if name not in tuned
     )
+
+
+def test_every_tuned_model_has_its_own_threshold_and_the_others_none() -> None:
+    for model in all_models().values():
+        if model.is_tuned:
+            assert 0 < model.own_threshold() < 1
+        else:
+            assert model.threshold is None
+            with pytest.raises(ValueError, match="no threshold"):
+                model.own_threshold()
+
+
+def test_the_final_threshold_is_the_random_forest_threshold() -> None:
+    assert FINAL_THRESHOLD == get_model("random_forest").own_threshold() == 0.475

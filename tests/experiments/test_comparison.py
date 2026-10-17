@@ -116,14 +116,14 @@ def test_main_reads_the_settings_from_a_config_file(
     config = tmp_path / "compare.toml"
     config.write_text(
         'models = ["dummy", "logistic_regression"]\nn_splits = 3\nn_repeats = 2\n'
-        "[data]\ntest_size = 0.5\n"
+        '[data]\npath = "other.csv"\n'
     )
     monkeypatch.setattr(sys, "argv", ["comparison", "--config", str(config)])
 
     comparison.main()
 
     out = capsys.readouterr().out
-    assert "3-fold" in out and "300 rows, 30 failures" in out and "2 repeat(s)" in out
+    assert "3-fold" in out and "480 rows, 48 failures" in out and "2 repeat(s)" in out
     assert "random_forest" not in out
 
 

@@ -2,11 +2,10 @@
 feature_set = "all"
 n_splits = 5
 n_repeats = 1
-random_state = 42
+random_state = 42  # shuffles the cross-validation folds within the training rows
 # Leave `models` out to compare all registered models, or list a subset:
 # models = ["dummy", "random_forest", "xgboost"]
 
+# The train/test split is fixed for the project and is not a setting.
 [data]
 path = "data/raw/ai4i2020.csv"
-test_size = 0.2
-random_state = 42

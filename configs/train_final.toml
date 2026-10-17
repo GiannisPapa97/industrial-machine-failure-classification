@@ -2,10 +2,9 @@
 model = "random_forest"
 feature_set = "all"
 tuned = true
-threshold = 0.475
+# threshold = 0.475  # left out: the tuned model's own threshold is used
 output_path = "models/final_model.joblib"
 
+# The train/test split is fixed for the project and is not a setting.
 [data]
 path = "data/raw/ai4i2020.csv"
-test_size = 0.2
-random_state = 42

@@ -1,3 +1,4 @@
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -19,14 +20,11 @@ def test_data_config_defaults_are_the_values_used_so_far() -> None:
     config = DataConfig()
 
     assert config.path == DEFAULT_RAW_DIR / RAW_FILENAME
-    assert config.test_size == 0.2
-    assert config.random_state == 42
 
 
-@pytest.mark.parametrize("test_size", [0.0, 1.0, -0.1, 1.5])
-def test_data_config_rejects_a_test_size_outside_zero_and_one(test_size: float) -> None:
-    with pytest.raises(ConfigError, match="test_size"):
-        DataConfig(test_size=test_size)
+def test_the_split_is_not_a_setting() -> None:
+    # every decision was made on the same training rows, so the split is fixed
+    assert {f.name for f in dataclasses.fields(DataConfig)} == {"path"}
 
 
 def test_training_config_defaults_are_the_final_model() -> None:
@@ -35,7 +33,8 @@ def test_training_config_defaults_are_the_final_model() -> None:
     assert config.model == FINAL_MODEL
     assert config.feature_set == "all"
     assert config.tuned
-    assert config.threshold == FINAL_THRESHOLD
+    assert config.threshold is None  # the model's own
+    assert config.decision_threshold == FINAL_THRESHOLD == 0.475
     assert config.output_path == MODEL_PATH
     assert config.data == DataConfig()
 
@@ -59,7 +58,25 @@ def test_training_config_rejects_tuned_settings_for_an_untuned_model() -> None:
     with pytest.raises(ConfigError, match="knn has no tuned settings"):
         TrainingConfig(model="knn")
 
-    assert TrainingConfig(model="knn", tuned=False).model == "knn"
+    assert TrainingConfig(model="knn", tuned=False, threshold=0.3).model == "knn"
+
+
+def test_each_tuned_model_brings_its_own_threshold() -> None:
+    assert TrainingConfig(model="xgboost").decision_threshold == 0.654
+    assert TrainingConfig(model="extra_trees").decision_threshold == 0.416
+
+
+def test_a_threshold_that_is_set_wins() -> None:
+    config = TrainingConfig(model="xgboost", threshold=0.3)
+
+    assert config.decision_threshold == 0.3
+
+
+@pytest.mark.parametrize("model", ["knn", "random_forest"])
+def test_an_untuned_model_needs_a_threshold(model: str) -> None:
+    # a tuned model's threshold does not fit the same model with default settings
+    with pytest.raises(ConfigError, match="set threshold"):
+        TrainingConfig(model=model, tuned=False)
 
 
 @pytest.mark.parametrize("threshold", [0.0, 1.0, 2.0])
