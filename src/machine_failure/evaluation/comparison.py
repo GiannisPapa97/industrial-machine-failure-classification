@@ -56,10 +56,17 @@ def format_comparison(table: pd.DataFrame) -> str:
     return cells.to_string()
 
 
-def describe_run(X_train: pd.DataFrame, y_train: pd.Series, n_repeats: int) -> str:
+def describe_cross_validation(
+    n_rows: int, n_failures: int, n_repeats: int, n_splits: int = N_SPLITS
+) -> str:
     """One line describing how the models were cross-validated."""
     return (
-        f"{N_SPLITS}-fold stratified cross-validation on the training set "
-        f"({len(X_train):,} rows, {int(y_train.sum())} failures), "
+        f"{n_splits}-fold stratified cross-validation on the training set "
+        f"({n_rows:,} rows, {n_failures} failures), "
         f"{n_repeats} repeat(s). Mean ± std across folds."
     )
+
+
+def describe_run(X_train: pd.DataFrame, y_train: pd.Series, n_repeats: int) -> str:
+    """``describe_cross_validation`` for a training set and the default folds."""
+    return describe_cross_validation(len(X_train), int(y_train.sum()), n_repeats)

@@ -7,8 +7,8 @@ import pandas as pd
 from sklearn.pipeline import Pipeline
 
 from machine_failure.config import TrainingConfig
-from machine_failure.data import load_xy, split_train_test
 from machine_failure.models import FinalModel, get_model, save_final_model
+from machine_failure.pipelines.splits import load_split
 
 
 @dataclass(frozen=True)
@@ -42,11 +42,7 @@ class TrainingPipeline:
 
     def load_training_data(self) -> tuple[pd.DataFrame, pd.Series]:
         """The training rows and their labels, as the config splits them."""
-        data = self.config.data
-        X, y = load_xy(data.path)
-        X_train, _, y_train, _ = split_train_test(
-            X, y, test_size=data.test_size, random_state=data.random_state
-        )
+        X_train, _, y_train, _ = load_split(self.config.data)
         return X_train, y_train
 
     def build_model(self) -> Pipeline:

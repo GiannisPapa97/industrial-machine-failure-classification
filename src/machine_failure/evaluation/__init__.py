@@ -3,6 +3,7 @@
 from machine_failure.evaluation.comparison import (
     METRICS,
     compare_models,
+    describe_cross_validation,
     describe_run,
     format_comparison,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "compare_at_recall_targets",
     "compare_models",
     "cross_validate_model",
+    "describe_cross_validation",
     "describe_run",
     "format_comparison",
     "format_table",
