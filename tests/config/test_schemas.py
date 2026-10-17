@@ -229,3 +229,9 @@ def test_interpretation_config_rejects_bad_values(
 ) -> None:
     with pytest.raises(ConfigError, match=message):
         InterpretationConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_a_model_without_probabilities_cannot_be_the_final_model() -> None:
+    # the SVM is compared through its decision function, but cannot be thresholded
+    with pytest.raises(ConfigError, match="svm gives no probabilities"):
+        TrainingConfig(model="svm", tuned=False, threshold=0.5)

@@ -146,8 +146,9 @@ def test_main_rejects_an_unknown_model(
 ) -> None:
     monkeypatch.setattr(sys, "argv", ["mf", "tune", "--models", "dummy"])
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exit_info:
         app.main()
+    assert exit_info.value.code == 2  # argparse: not one of the choices
 
 
 @pytest.mark.usefixtures("small_run")

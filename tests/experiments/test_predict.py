@@ -46,7 +46,10 @@ def test_main_prints_one_row_of_scores_per_input_row(
 
 
 def test_main_writes_the_scores_to_a_file_and_refuses_to_overwrite(
-    files: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    files: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
     model, rows = files
     out = tmp_path / "scores.csv"
@@ -65,8 +68,10 @@ def test_main_writes_the_scores_to_a_file_and_refuses_to_overwrite(
     scores = pd.read_csv(out, index_col="row")
     assert list(scores.columns) == ["probability", "flagged"] and len(scores) == 40
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exit_info:
         app.main()
+    assert exit_info.value.code == 1  # one-line error, not a usage message
+    assert "already exists; pass --overwrite" in capsys.readouterr().err
     monkeypatch.setattr(sys, "argv", [*argv, "--overwrite"])
     app.main()
 

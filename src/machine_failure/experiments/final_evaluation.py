@@ -6,7 +6,6 @@ to tune the model or the threshold.
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_or_default
@@ -16,7 +15,7 @@ from machine_failure.experiments.options import (
     data_option,
 )
 from machine_failure.models import MODEL_PATH
-from machine_failure.pipelines import EvaluationPipeline, UnconfirmedTestSetError
+from machine_failure.pipelines import EvaluationPipeline
 
 HELP = "evaluate the final model once on the held-out test set"
 
@@ -58,13 +57,5 @@ def run(args: argparse.Namespace) -> None:
         reference=False if args.skip_reference else None,
         data=data_option(args),
     )
-    try:
-        result = EvaluationPipeline(config).run(confirm=args.confirm)
-    except UnconfirmedTestSetError:
-        print(
-            "The test set is meant to be used once, on the final model. "
-            "Run again with --confirm to evaluate on it.",
-            file=sys.stderr,
-        )
-        raise SystemExit(1) from None
+    result = EvaluationPipeline(config).run(confirm=args.confirm)
     print(result.format())

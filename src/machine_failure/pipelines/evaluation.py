@@ -168,7 +168,7 @@ def format_evaluation(
     return "\n".join(lines)
 
 
-class UnconfirmedTestSetError(RuntimeError):
+class UnconfirmedTestSetError(UserError):
     """The test set was about to be used without an explicit confirmation."""
 
 
@@ -228,8 +228,8 @@ class EvaluationPipeline:
         """Evaluate on the test set. Refuses unless ``confirm`` is True."""
         if not confirm:
             raise UnconfirmedTestSetError(
-                "The test set is meant to be used once, on the final model. "
-                "Run again with confirm=True (--confirm) to evaluate on it."
+                "the test set is meant to be used once, on the final model; "
+                "run again with --confirm (confirm=True) to evaluate on it"
             )
         X_train, X_test, y_train, y_test = load_split(self.config.data)
         final = load_final_model(self.config.model_path)

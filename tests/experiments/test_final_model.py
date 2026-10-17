@@ -48,8 +48,9 @@ def test_main_accepts_a_threshold_and_refuses_to_overwrite(
     app.main()
     assert load_final_model(path).threshold == 0.3
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exit_info:
         app.main()
+    assert exit_info.value.code == 1
     assert "already exists" in capsys.readouterr().err
     monkeypatch.setattr(sys, "argv", [*argv, "--overwrite"])
     app.main()
@@ -114,8 +115,9 @@ def test_main_rejects_a_model_without_tuned_settings(
     argv = ["mf", "train", "--model", "knn", "--output", str(tmp_path / "m.joblib")]
     monkeypatch.setattr(sys, "argv", argv)
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exit_info:
         app.main()
+    assert exit_info.value.code == 1
     assert (
         capsys.readouterr().err
         == "error: knn has no tuned settings; set tuned = false\n"

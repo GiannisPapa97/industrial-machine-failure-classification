@@ -91,6 +91,11 @@ class TrainingConfig:
         check_feature_set(self.feature_set)
         if self.tuned and not get_model(self.model).is_tuned:
             raise ConfigError(f"{self.model} has no tuned settings; set tuned = false")
+        if not hasattr(get_model(self.model).make_estimator(), "predict_proba"):
+            raise ConfigError(
+                f"{self.model} gives no probabilities, so it cannot be trained as "
+                "the final model (its alerts come from a probability threshold)"
+            )
         if self.threshold is None:
             if not self.tuned or get_model(self.model).threshold is None:
                 raise ConfigError(
