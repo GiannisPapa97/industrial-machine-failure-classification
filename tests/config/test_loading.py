@@ -120,3 +120,9 @@ def test_the_error_names_the_file(tmp_path: Path) -> None:
 def test_a_missing_file_is_a_file_not_found_error(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_config(tmp_path / "nope.toml", TrainingConfig)
+
+
+def test_an_optional_value_is_converted_to_its_type() -> None:
+    assert convert(1, float | None, "threshold") == 1.0
+    with pytest.raises(ConfigError, match="threshold must be float"):
+        convert("high", float | None, "threshold")

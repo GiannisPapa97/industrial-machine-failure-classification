@@ -8,6 +8,7 @@ do not exist, or have the wrong type, are an error that names the key.
 import dataclasses
 import tomllib
 from pathlib import Path
+from types import UnionType
 from typing import Any, Literal, get_args, get_origin, get_type_hints
 
 from machine_failure.config.errors import ConfigError
@@ -16,6 +17,10 @@ from machine_failure.config.errors import ConfigError
 def convert(value: Any, hint: Any, key: str) -> Any:
     """Turn a TOML ``value`` into the type ``hint``, or raise ``ConfigError``."""
     origin = get_origin(hint)
+    if origin is UnionType:
+        # ``X | None``: TOML has no null, so a value present is always an X
+        (inner,) = [arg for arg in get_args(hint) if arg is not type(None)]
+        return convert(value, inner, key)
     if dataclasses.is_dataclass(hint) and isinstance(hint, type):
         return build(hint, value, key)
     if origin is tuple:

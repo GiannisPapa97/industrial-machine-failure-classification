@@ -29,6 +29,9 @@ SCALE_POS_WEIGHT = 28.5
 class RandomForestModel(Model):
     name = "random_forest"
     role = "candidate"
+    # The exact best-F1 threshold is 0.4746. 0.475 is the value that was chosen and
+    # evaluated once on the test set, so it stays.
+    threshold: ClassVar[float | None] = 0.475
     search_space: ClassVar[SearchSpace] = {
         "model__n_estimators": [200, 300, 500],
         "model__max_depth": [None, 8, 12, 16, 24],
@@ -56,6 +59,7 @@ class RandomForestModel(Model):
 class ExtraTreesModel(Model):
     name = "extra_trees"
     role = "candidate"
+    threshold: ClassVar[float | None] = 0.416
     search_space: ClassVar[SearchSpace] = {
         "model__n_estimators": [200, 300, 500],
         "model__max_depth": [None, 8, 12, 16, 24],
@@ -82,6 +86,7 @@ class ExtraTreesModel(Model):
 class HistGradientBoostingModel(Model):
     name = "hist_gradient_boosting"
     role = "candidate"
+    threshold: ClassVar[float | None] = 0.864
     search_space: ClassVar[SearchSpace] = {
         "model__learning_rate": [0.02, 0.05, 0.1, 0.2],
         "model__max_iter": [100, 200, 300, 500],
@@ -109,6 +114,7 @@ class HistGradientBoostingModel(Model):
 class XGBoostModel(Model):
     name = "xgboost"
     role = "candidate"
+    threshold: ClassVar[float | None] = 0.654
     search_space: ClassVar[SearchSpace] = {
         "model__n_estimators": [200, 300, 500],
         "model__learning_rate": [0.02, 0.05, 0.1, 0.2],

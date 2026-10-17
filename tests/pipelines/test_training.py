@@ -80,7 +80,7 @@ def test_the_tuned_model_carries_the_tuned_settings() -> None:
 
 
 def test_an_untuned_model_keeps_its_default_settings() -> None:
-    config = TrainingConfig(model="random_forest", tuned=False)
+    config = TrainingConfig(model="random_forest", tuned=False, threshold=0.5)
 
     assert (
         TrainingPipeline(config).build_model().get_params()["model__max_depth"] is None
@@ -97,7 +97,9 @@ def test_the_feature_set_decides_the_inputs_the_model_sees(make_xy: MakeXY) -> N
     X, y = make_xy(n=300)
     widths = {}
     for feature_set in FEATURE_SETS:
-        config = TrainingConfig(model="knn", tuned=False, feature_set=feature_set)
+        config = TrainingConfig(
+            model="knn", tuned=False, threshold=0.5, feature_set=feature_set
+        )
         final = TrainingPipeline(config).fit(X, y).final
         widths[feature_set] = final.model.named_steps["model"].n_features_in_
 
@@ -107,7 +109,9 @@ def test_the_feature_set_decides_the_inputs_the_model_sees(make_xy: MakeXY) -> N
 def test_save_writes_the_model_and_refuses_to_overwrite(
     make_xy: MakeXY, tmp_path: Path
 ) -> None:
-    config = TrainingConfig(model="knn", tuned=False, output_path=tmp_path / "m.joblib")
+    config = TrainingConfig(
+        model="knn", tuned=False, threshold=0.5, output_path=tmp_path / "m.joblib"
+    )
     pipeline = TrainingPipeline(config)
     result = pipeline.fit(*make_xy(n=300))
 
@@ -118,3 +122,9 @@ def test_save_writes_the_model_and_refuses_to_overwrite(
     with pytest.raises(FileExistsError):
         pipeline.save(result)
     assert pipeline.save(result, overwrite=True) == path
+
+
+def test_the_trained_model_gets_the_threshold_of_its_own_model(make_xy: MakeXY) -> None:
+    final = TrainingPipeline(TrainingConfig(model="xgboost")).fit(*make_xy(n=300)).final
+
+    assert final.threshold == 0.654

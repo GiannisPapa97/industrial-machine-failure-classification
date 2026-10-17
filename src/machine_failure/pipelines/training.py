@@ -61,7 +61,7 @@ class TrainingPipeline:
             "fitting %s on %s training rows", self.config.model, f"{len(X_train):,}"
         )
         fitted = self.build_model().fit(X_train, y_train)
-        final = FinalModel(self.config.model, fitted, self.config.threshold)
+        final = FinalModel(self.config.model, fitted, self.config.decision_threshold)
         return TrainingResult(final, self.config, len(X_train), int(y_train.sum()))
 
     def run(self) -> TrainingResult:

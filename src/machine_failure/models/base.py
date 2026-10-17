@@ -28,13 +28,16 @@ class Model(ABC):
     estimator behind the preprocessing pipeline, with optional settings applied.
     Models that are tuned also carry the space a search explores (keyed by pipeline
     parameter name, ``model__<setting>``) and the settings it found (keyed by the
-    bare setting name).
+    bare setting name). They also carry ``threshold``: the decision threshold with
+    the best F1 on the tuned model's out-of-fold predictions on the training rows
+    (``uv run mf-thresholds``). Thresholds do not carry over between models.
     """
 
     name: ClassVar[str]
     role: ClassVar[Role]
     search_space: ClassVar[SearchSpace] = {}
     tuned_settings: ClassVar[dict[str, Any]] = {}
+    threshold: ClassVar[float | None] = None
 
     @abstractmethod
     def make_estimator(self) -> BaseEstimator:
@@ -44,6 +47,12 @@ class Model(ABC):
     def is_tuned(self) -> bool:
         """Whether the model has a search space and tuned settings."""
         return bool(self.search_space)
+
+    def own_threshold(self) -> float:
+        """The tuned model's threshold. ``ValueError`` if the model has none."""
+        if self.threshold is None:
+            raise ValueError(f"{self.name} has no threshold of its own")
+        return self.threshold
 
     def build(
         self,

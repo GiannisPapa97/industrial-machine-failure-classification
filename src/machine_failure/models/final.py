@@ -7,12 +7,14 @@ import joblib
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
-# The chosen model and decision threshold. The threshold is the one with the best
-# F1 on the out-of-fold predictions of this model (see the README). The final
-# model is refit on all the training rows, so the same threshold is an
-# approximation of the best one for it.
-FINAL_MODEL = "random_forest"
-FINAL_THRESHOLD = 0.475
+from machine_failure.models.base import get_model
+from machine_failure.models.candidates import RandomForestModel
+
+# The chosen model, and its decision threshold (``Model.threshold``): the one with
+# the best F1 on its out-of-fold predictions (see the README). The final model is
+# refit on all the training rows, so that threshold approximates the best one.
+FINAL_MODEL = RandomForestModel.name
+FINAL_THRESHOLD = get_model(FINAL_MODEL).own_threshold()
 MODEL_PATH = Path("models/final_model.joblib")
 
 SAVED_KEYS = {"name", "model", "threshold"}
