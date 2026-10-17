@@ -12,7 +12,7 @@
 ## 2. Testing and Quality Checks
 
 - Before reporting a task as complete, run all relevant tests and quality checks configured for the project.
-- Before a change is considered ready for a commit, ensure that applicable checks have passed.
+- Before each commit, run only the checks and tests affected by the change: the unit and integration tests that exercise the changed code, and the linters, formatters, and type checkers on the changed files. A full run of every check is not required per commit.
 - This includes unit tests, integration tests, linters, formatters, type checkers, static analysis, and other configured validation tools, as applicable.
 - Inspect `pyproject.toml`, project documentation, and configuration files to identify the actual checks and their correct commands.
 - Add or update tests when changing behavior, fixing bugs, or introducing functionality.
@@ -52,6 +52,7 @@ Do not interpret a request to implement, fix, test, review, or prepare code as p
 - You may recommend exact Git commands for the user to run.
 - Before any explicitly authorized Git or GitHub operation, complete the relevant checks first when applicable and report their results.
 - If authorization is ambiguous, stop and ask the user.
+- An explicit authorization may cover a defined series of operations, such as committing each commit of the current task. It ends with that task and does not carry over to the next one. Without such an authorization, ask before each operation.
 - Never perform commits, pushes, pulls, merges, or other repository-changing operations autonomously.
 
 ## 4. Branching and Pull Request Workflow
