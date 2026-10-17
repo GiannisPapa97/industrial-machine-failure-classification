@@ -1,0 +1,12 @@
+# Compare every model with default settings: the same as `uv run mf-compare`.
+feature_set = "all"
+n_splits = 5
+n_repeats = 1
+random_state = 42
+# Leave `models` out to compare all registered models, or list a subset:
+# models = ["dummy", "random_forest", "xgboost"]
+
+[data]
+path = "data/raw/ai4i2020.csv"
+test_size = 0.2
+random_state = 42

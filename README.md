@@ -566,18 +566,47 @@ src/machine_failure/
   models/        the Model base class and registry, the baselines and
                  candidates as model classes, search spaces, tuned
                  configurations, the final model
+  config/        typed, validated settings for the workflows, read from TOML
   experiments/   the commands that run the workflows
+configs/         example config files
 tests/
-  data/ features/ evaluation/ models/ experiments/   unit tests, one folder per package
-  integration/                                       tests on the real dataset
+  data/ features/ evaluation/ models/ config/ experiments/   unit tests, one folder per package
+  integration/                                               tests on the real dataset
 notebooks/       exploration notebooks
 data/raw/        downloaded dataset (not committed)
 ```
 
 Dependencies only point downwards: `data` is used by `features`, which is used by
-`evaluation`, then `models`, then `experiments`. Each package re-exports its
+`evaluation`, then `models`, then `config` (which checks model names against the
+model registry), then `experiments`. A test (`tests/test_layering.py`) fails if a
+package imports from one above it. Each package re-exports its
 public names, so code imports from the package
 (`from machine_failure.models import build_candidates`), not from its files.
+
+### Config files
+
+Workflow settings are frozen dataclasses in `machine_failure.config`, checked when
+they are created, so a typo or an out-of-range value fails at once with a clear
+message: `DataConfig` (dataset path, test size, seed), `ComparisonConfig` (models,
+feature set, folds, repeats), `TrainingConfig` (model, tuned settings or not,
+threshold, output path) and `EvaluationConfig` (threshold, recall targets). Their
+defaults are the values the commands used before, so an empty file changes nothing.
+
+`load_config(path, ConfigClass)` reads a TOML file. Top-level keys are the config's
+fields and `[data]` holds the nested data settings. Keys left out keep their
+default; unknown keys, wrong types and invalid values raise a `ConfigError` that
+names the file and the key. The examples are in `configs/`, and a test loads every
+one of them.
+
+```python
+from pathlib import Path
+
+from machine_failure.config import ComparisonConfig, load_config
+
+config = load_config(Path("configs/compare_trees.toml"), ComparisonConfig)
+```
+
+The commands do not read these files yet; the pipeline PRs that follow do.
 
 ### Adding a model
 
