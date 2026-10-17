@@ -1,6 +1,7 @@
 import runpy
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +24,8 @@ from machine_failure.thresholds import (
     threshold_for_recall,
 )
 
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
+
 # A small case that can be worked out by hand: 3 failures and 3 normal rows.
 LABELS = pd.Series([1, 1, 0, 1, 0, 0])
 PROBABILITIES = pd.Series([0.9, 0.8, 0.7, 0.6, 0.4, 0.2])
@@ -40,24 +43,6 @@ def cheap_models() -> dict[str, Pipeline]:
         "forest": with_preprocessing(forest),
         "logistic": with_preprocessing(LogisticRegression()),
     }
-
-
-def make_xy(n: int = 400, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
 
 
 def test_curve_counts_match_a_hand_calculation() -> None:
@@ -218,12 +203,12 @@ def test_importing_the_module_does_not_change_the_plotting_backend() -> None:
 
 
 @pytest.fixture
-def small_run(monkeypatch: pytest.MonkeyPatch) -> None:
+def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic dataset and two quick models instead of the tuned four."""
-    monkeypatch.setattr(thresholds, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(thresholds, "load_xy", lambda: make_xy(n=400))
     monkeypatch.setattr(thresholds, "build_tuned_models", cheap_models)
     # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400))
     monkeypatch.setattr(tuned_models, "build_tuned_models", cheap_models)
 
 

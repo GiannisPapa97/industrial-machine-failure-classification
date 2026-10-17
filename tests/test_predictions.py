@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -12,6 +13,8 @@ from sklearn.utils.validation import check_is_fitted
 from machine_failure.evaluation import cross_validate_model
 from machine_failure.models import with_preprocessing
 from machine_failure.predictions import out_of_fold_predictions
+
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
 class Memorizer(ClassifierMixin, BaseEstimator):  # type: ignore[misc]
@@ -31,27 +34,8 @@ class Memorizer(ClassifierMixin, BaseEstimator):  # type: ignore[misc]
         return np.column_stack([1 - seen, seen])
 
 
-def make_xy(n: int = 400, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        },
-        index=np.arange(n) + 1000,
-    )
-    return X, y.set_axis(X.index)
-
-
-def test_every_row_gets_one_probability_from_one_fold() -> None:
-    X, y = make_xy()
+def test_every_row_gets_one_probability_from_one_fold(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=1000)
 
     result = out_of_fold_predictions(with_preprocessing(LogisticRegression()), X, y)
 
@@ -64,16 +48,16 @@ def test_every_row_gets_one_probability_from_one_fold() -> None:
     assert (result["fold"].value_counts() == 80).all()
 
 
-def test_folds_are_stratified() -> None:
-    X, y = make_xy()
+def test_folds_are_stratified(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=1000)
 
     result = out_of_fold_predictions(with_preprocessing(LogisticRegression()), X, y)
 
     assert (result.groupby("fold")["label"].sum() == 8).all()  # 40 failures / 5 folds
 
 
-def test_no_row_is_predicted_by_a_model_that_saw_it() -> None:
-    X, y = make_xy()
+def test_no_row_is_predicted_by_a_model_that_saw_it(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=1000)
     X = X.assign(row_id=np.arange(len(X)))
 
     result = out_of_fold_predictions(Memorizer(), X, y)
@@ -81,8 +65,8 @@ def test_no_row_is_predicted_by_a_model_that_saw_it() -> None:
     assert (result["probability"] == 0.0).all()
 
 
-def test_the_folds_match_cross_validate_model() -> None:
-    X, y = make_xy()
+def test_the_folds_match_cross_validate_model(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=1000)
     model = with_preprocessing(LogisticRegression())
 
     result = out_of_fold_predictions(model, X, y)
@@ -95,8 +79,8 @@ def test_the_folds_match_cross_validate_model() -> None:
     assert per_fold == pytest.approx(scores["pr_auc"].to_numpy())
 
 
-def test_the_same_seed_gives_the_same_predictions() -> None:
-    X, y = make_xy()
+def test_the_same_seed_gives_the_same_predictions(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=1000)
     model = with_preprocessing(LogisticRegression())
 
     first = out_of_fold_predictions(model, X, y)
@@ -107,8 +91,8 @@ def test_the_same_seed_gives_the_same_predictions() -> None:
     assert not first["fold"].equals(other["fold"])
 
 
-def test_n_splits_sets_the_number_of_folds() -> None:
-    X, y = make_xy()
+def test_n_splits_sets_the_number_of_folds(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=1000)
 
     result = out_of_fold_predictions(
         with_preprocessing(LogisticRegression()), X, y, n_splits=4
@@ -117,8 +101,8 @@ def test_n_splits_sets_the_number_of_folds() -> None:
     assert sorted(result["fold"].unique()) == [0, 1, 2, 3]
 
 
-def test_the_given_model_is_not_fitted() -> None:
-    X, y = make_xy()
+def test_the_given_model_is_not_fitted(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400, index_offset=1000)
     model = with_preprocessing(LogisticRegression())
 
     out_of_fold_predictions(model, X, y)

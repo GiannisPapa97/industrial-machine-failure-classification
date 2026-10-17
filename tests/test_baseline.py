@@ -1,7 +1,7 @@
 import runpy
 import sys
+from collections.abc import Callable
 
-import numpy as np
 import pandas as pd
 import pytest
 from sklearn.dummy import DummyClassifier
@@ -15,23 +15,7 @@ from machine_failure.baseline import (
     format_comparison,
 )
 
-
-def make_xy(n: int = 600, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
 def test_build_baselines_returns_dummy_and_logistic_regression() -> None:
@@ -44,7 +28,7 @@ def test_build_baselines_returns_dummy_and_logistic_regression() -> None:
     assert logistic.class_weight == "balanced"
 
 
-def test_compare_models_scores_each_model_on_every_metric() -> None:
+def test_compare_models_scores_each_model_on_every_metric(make_xy: MakeXY) -> None:
     X, y = make_xy()
 
     table = compare_models(build_baselines(), X, y)
@@ -60,7 +44,7 @@ def test_compare_models_scores_each_model_on_every_metric() -> None:
     assert pr_auc["logistic_regression"] > 0.8
 
 
-def test_format_comparison_shows_mean_and_std() -> None:
+def test_format_comparison_shows_mean_and_std(make_xy: MakeXY) -> None:
     X, y = make_xy()
     table = compare_models(build_baselines(), X, y)
 
@@ -74,7 +58,7 @@ def test_format_comparison_shows_mean_and_std() -> None:
 
 
 @pytest.fixture
-def fake_load_xy(monkeypatch: pytest.MonkeyPatch) -> None:
+def fake_load_xy(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace the dataset with a small synthetic one, for the command-line tests."""
     monkeypatch.setattr(data, "load_xy", lambda: make_xy())
     monkeypatch.setattr(baseline, "load_xy", lambda: make_xy())

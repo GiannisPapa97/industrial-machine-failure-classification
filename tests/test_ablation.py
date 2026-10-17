@@ -1,7 +1,7 @@
 import runpy
 import sys
+from collections.abc import Callable
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -9,23 +9,7 @@ from machine_failure import ablation, data, models
 from machine_failure.ablation import compare_feature_sets, format_feature_set_table
 from machine_failure.baseline import METRICS, build_baselines
 
-
-def make_xy(n: int = 600, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
 def make_table() -> pd.DataFrame:
@@ -41,6 +25,7 @@ def make_table() -> pd.DataFrame:
 
 
 def test_compare_feature_sets_has_a_column_per_set_metric_and_statistic(
+    make_xy: MakeXY,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(ablation, "build_all_models", build_baselines)
@@ -63,7 +48,7 @@ def test_compare_feature_sets_has_a_column_per_set_metric_and_statistic(
 
 
 def test_compare_feature_sets_accepts_a_subset_and_reports_progress(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setattr(ablation, "build_all_models", build_baselines)
     X, y = make_xy()
@@ -94,7 +79,7 @@ def test_format_can_show_another_metric() -> None:
 
 
 @pytest.fixture
-def fast_run(monkeypatch: pytest.MonkeyPatch) -> None:
+def fast_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """Use a small synthetic dataset and only the two baselines, for speed."""
     monkeypatch.setattr(ablation, "load_xy", lambda: make_xy())
     monkeypatch.setattr(ablation, "build_all_models", build_baselines)

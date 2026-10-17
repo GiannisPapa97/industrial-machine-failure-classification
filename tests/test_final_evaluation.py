@@ -1,5 +1,6 @@
 import runpy
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -21,32 +22,11 @@ from machine_failure.final_evaluation import (
 from machine_failure.final_model import FinalModel, save_final_model
 from machine_failure.models import with_preprocessing
 
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
+
 # A case that can be worked out by hand: 3 failures and 3 normal rows.
 LABELS = np.array([1, 1, 0, 1, 0, 0])
 PROBABILITIES = np.array([0.9, 0.8, 0.7, 0.6, 0.4, 0.2])
-
-
-def make_xy(
-    n: int = 600, failure_rate: float = 0.1, signal: float = 6.0
-) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a somewhat higher torque.
-
-    The signal is weak enough that the scores are below 1, so intervals are not
-    degenerate."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * signal,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
 
 
 def cheap_models() -> dict[str, Pipeline]:
@@ -54,9 +34,11 @@ def cheap_models() -> dict[str, Pipeline]:
     return {"random_forest": with_preprocessing(forest)}
 
 
-def fitted_final(threshold: float = 0.5) -> tuple[FinalModel, pd.DataFrame, pd.Series]:
+def fitted_final(
+    make_xy: MakeXY, threshold: float = 0.5
+) -> tuple[FinalModel, pd.DataFrame, pd.Series]:
     """A quick final model trained on a synthetic split, and the test part of it."""
-    X, y = make_xy()
+    X, y = make_xy(signal=6.0)
     X_train, X_test, y_train, y_test = split_train_test(X, y)
     model = cheap_models()["random_forest"].fit(X_train, y_train)
     return FinalModel("random_forest", model, threshold), X_test, y_test
@@ -99,8 +81,8 @@ def test_bootstrap_keeps_the_number_of_failures_fixed() -> None:
     assert len(set(rows)) < 100  # sampled with replacement
 
 
-def test_evaluate_final_scores_the_test_set_with_intervals() -> None:
-    final, X_test, y_test = fitted_final()
+def test_evaluate_final_scores_the_test_set_with_intervals(make_xy: MakeXY) -> None:
+    final, X_test, y_test = fitted_final(make_xy)
 
     result = evaluate_final(final, X_test, y_test, n_bootstrap=100)
 
@@ -119,8 +101,8 @@ def test_evaluate_final_scores_the_test_set_with_intervals() -> None:
         assert low <= scores[metric] <= high
 
 
-def test_the_intervals_are_reproducible_and_depend_on_the_seed() -> None:
-    final, X_test, y_test = fitted_final()
+def test_the_intervals_are_reproducible_and_depend_on_the_seed(make_xy: MakeXY) -> None:
+    final, X_test, y_test = fitted_final(make_xy)
 
     first = evaluate_final(final, X_test, y_test, n_bootstrap=100)
     again = evaluate_final(final, X_test, y_test, n_bootstrap=100)
@@ -132,10 +114,11 @@ def test_the_intervals_are_reproducible_and_depend_on_the_seed() -> None:
 
 
 def test_cross_validated_reference_uses_out_of_fold_predictions(
+    make_xy: MakeXY,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(final_evaluation, "build_tuned_models", cheap_models)
-    X, y = make_xy()
+    X, y = make_xy(signal=6.0)
 
     reference = cross_validated_reference("random_forest", 0.5, X, y)
 
@@ -144,8 +127,8 @@ def test_cross_validated_reference_uses_out_of_fold_predictions(
     assert reference["roc_auc"] > 0.6  # better than chance, with a weak signal
 
 
-def test_format_shows_the_scores_intervals_and_counts() -> None:
-    final, X_test, y_test = fitted_final()
+def test_format_shows_the_scores_intervals_and_counts(make_xy: MakeXY) -> None:
+    final, X_test, y_test = fitted_final(make_xy)
     result = evaluate_final(final, X_test, y_test, n_bootstrap=50)
 
     text = format_evaluation(result)
@@ -159,8 +142,10 @@ def test_format_shows_the_scores_intervals_and_counts() -> None:
     assert "correct alerts" in text and "false alarms" in text
 
 
-def test_format_adds_the_cross_validation_column_when_given_a_reference() -> None:
-    final, X_test, y_test = fitted_final()
+def test_format_adds_the_cross_validation_column_when_given_a_reference(
+    make_xy: MakeXY,
+) -> None:
+    final, X_test, y_test = fitted_final(make_xy)
     result = evaluate_final(final, X_test, y_test, n_bootstrap=50)
     reference = dict(result.scores)
 
@@ -170,18 +155,18 @@ def test_format_adds_the_cross_validation_column_when_given_a_reference() -> Non
 
 
 @pytest.fixture
-def saved_model(tmp_path: Path) -> Path:
-    final, _, _ = fitted_final()
+def saved_model(make_xy: MakeXY, tmp_path: Path) -> Path:
+    final, _, _ = fitted_final(make_xy)
     return save_final_model(final, tmp_path / "final.joblib")
 
 
 @pytest.fixture
-def small_run(monkeypatch: pytest.MonkeyPatch) -> None:
+def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic dataset and a quick forest, for the reference."""
-    monkeypatch.setattr(final_evaluation, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(final_evaluation, "load_xy", lambda: make_xy(signal=6.0))
     monkeypatch.setattr(final_evaluation, "build_tuned_models", cheap_models)
     # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy())
+    monkeypatch.setattr(data, "load_xy", lambda: make_xy(signal=6.0))
     monkeypatch.setattr(tuned_models, "build_tuned_models", cheap_models)
 
 

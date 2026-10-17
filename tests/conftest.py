@@ -13,7 +13,7 @@ import pytest
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def make_xy() -> MakeXY:
     """A factory of synthetic features and a failure target, with the real columns.
 

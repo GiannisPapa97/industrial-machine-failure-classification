@@ -1,4 +1,5 @@
-import numpy as np
+from collections.abc import Callable
+
 import pandas as pd
 import pytest
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
@@ -21,6 +22,8 @@ from machine_failure.models import (
 )
 from machine_failure.preprocessing import FEATURE_SETS, FeatureSet, build_preprocessor
 
+MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
+
 EXPECTED_MODELS = {
     "random_forest": RandomForestClassifier,
     "extra_trees": ExtraTreesClassifier,
@@ -31,24 +34,6 @@ EXPECTED_MODELS = {
     "mlp": MLPClassifier,
     "qda": QuadraticDiscriminantAnalysis,
 }
-
-
-def make_xy(n: int = 600, failure_rate: float = 0.1) -> tuple[pd.DataFrame, pd.Series]:
-    """Synthetic features with the real columns; failures have a higher torque."""
-    rng = np.random.default_rng(0)
-    n_failures = int(n * failure_rate)
-    y = pd.Series([1] * n_failures + [0] * (n - n_failures), name="Machine failure")
-    X = pd.DataFrame(
-        {
-            "Type": rng.choice(["L", "M", "H"], size=n),
-            "Air temperature": rng.normal(300, 2, n),
-            "Process temperature": rng.normal(310, 1.5, n),
-            "Rotational speed": rng.integers(1200, 2800, n),
-            "Torque": rng.normal(40, 5, n) + y.to_numpy() * 20,
-            "Tool wear": rng.integers(0, 250, n),
-        }
-    )
-    return X, y
 
 
 def test_candidates_are_the_expected_models() -> None:
@@ -103,7 +88,7 @@ def test_with_preprocessing_puts_the_model_last() -> None:
 
 @pytest.mark.filterwarnings("error")
 @pytest.mark.parametrize("name", list(EXPECTED_MODELS))
-def test_every_candidate_learns_a_clear_signal(name: str) -> None:
+def test_every_candidate_learns_a_clear_signal(make_xy: MakeXY, name: str) -> None:
     X, y = make_xy()
 
     scores = cross_validate_model(build_candidates()[name], X, y, n_splits=3)
@@ -113,7 +98,9 @@ def test_every_candidate_learns_a_clear_signal(name: str) -> None:
 
 
 @pytest.mark.parametrize("feature_set", FEATURE_SETS)
-def test_feature_set_reaches_every_model(feature_set: FeatureSet) -> None:
+def test_feature_set_reaches_every_model(
+    make_xy: MakeXY, feature_set: FeatureSet
+) -> None:
     X, _ = make_xy()
     expected = list(build_preprocessor(feature_set).fit_transform(X).columns)
 
@@ -123,7 +110,7 @@ def test_feature_set_reaches_every_model(feature_set: FeatureSet) -> None:
         )
 
 
-def test_with_preprocessing_accepts_a_feature_set() -> None:
+def test_with_preprocessing_accepts_a_feature_set(make_xy: MakeXY) -> None:
     X, _ = make_xy()
 
     pipeline = with_preprocessing(KNeighborsClassifier(), "computed")
