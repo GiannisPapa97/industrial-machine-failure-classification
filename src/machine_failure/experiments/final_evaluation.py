@@ -10,7 +10,11 @@ import sys
 from pathlib import Path
 
 from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_or_default
-from machine_failure.experiments.options import add_config_option
+from machine_failure.experiments.options import (
+    add_config_option,
+    add_data_option,
+    data_option,
+)
 from machine_failure.models import MODEL_PATH
 from machine_failure.pipelines import EvaluationPipeline, UnconfirmedTestSetError
 
@@ -26,6 +30,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         "be done once",
     )
     add_config_option(parser, "evaluate_final.toml")
+    add_data_option(parser)
     parser.add_argument(
         "--model-path",
         type=Path,
@@ -51,6 +56,7 @@ def run(args: argparse.Namespace) -> None:
         model_path=args.model_path,
         n_bootstrap=args.n_bootstrap,
         reference=False if args.skip_reference else None,
+        data=data_option(args),
     )
     try:
         result = EvaluationPipeline(config).run(confirm=args.confirm)

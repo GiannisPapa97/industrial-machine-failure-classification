@@ -21,7 +21,11 @@ from machine_failure.experiments.ablation import (
     compare_feature_sets,
     format_feature_set_table,
 )
-from machine_failure.experiments.options import add_config_option
+from machine_failure.experiments.options import (
+    add_config_option,
+    add_data_option,
+    data_option,
+)
 from machine_failure.features import FEATURE_SETS
 from machine_failure.pipelines import ComparisonPipeline
 
@@ -37,6 +41,7 @@ def sort_by_metric(table: pd.DataFrame, metric: str = "pr_auc") -> pd.DataFrame:
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     """The options of ``mf compare``."""
     add_config_option(parser, "compare_default.toml")
+    add_data_option(parser)
     parser.add_argument(
         "--models",
         nargs="+",
@@ -68,6 +73,7 @@ def run(args: argparse.Namespace) -> None:
         ComparisonConfig,
         models=tuple(args.models) if args.models else None,
         n_repeats=args.repeats,
+        data=data_option(args),
     )
     pipeline = ComparisonPipeline(config)
     if args.feature_sets:

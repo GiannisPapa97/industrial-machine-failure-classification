@@ -8,7 +8,11 @@ import argparse
 from pathlib import Path
 
 from machine_failure.config import TrainingConfig, load_or_default
-from machine_failure.experiments.options import add_config_option
+from machine_failure.experiments.options import (
+    add_config_option,
+    add_data_option,
+    data_option,
+)
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
 from machine_failure.pipelines import TrainingPipeline
 
@@ -18,6 +22,7 @@ HELP = "train the final model and save it"
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     """The options of ``mf train``."""
     add_config_option(parser, "train_final.toml")
+    add_data_option(parser)
     parser.add_argument(
         "--model",
         help=f"tuned model to train (default: {FINAL_MODEL})",
@@ -48,6 +53,7 @@ def run(args: argparse.Namespace) -> None:
         model=args.model,
         threshold=args.threshold,
         output_path=args.output,
+        data=data_option(args),
     )
     pipeline = TrainingPipeline(config)
     result = pipeline.run()  # the test set is not used here

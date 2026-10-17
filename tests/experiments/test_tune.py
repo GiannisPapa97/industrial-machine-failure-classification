@@ -1,6 +1,7 @@
 import logging
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -8,7 +9,7 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models
+from machine_failure import models
 from machine_failure.evaluation import METRICS
 from machine_failure.experiments import app, tune
 from machine_failure.experiments.tune import (
@@ -17,6 +18,7 @@ from machine_failure.experiments.tune import (
     format_results,
     tune_models,
 )
+from machine_failure.pipelines import splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -40,13 +42,8 @@ def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     spaces = {"random_forest": SMALL_SPACE}
     monkeypatch.setattr(tune, "SEARCH_SPACES", spaces)
     monkeypatch.setattr(tune, "TUNED_MODELS", ("random_forest",))
-    monkeypatch.setattr(tune, "load_xy", lambda: make_xy(n=400))
+    monkeypatch.setattr(splits, "load_xy", lambda path: make_xy(n=400))
     monkeypatch.setattr(tune, "build_candidates", cheap_candidates)
-    # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(models, "SEARCH_SPACES", spaces)
-    monkeypatch.setattr(models, "TUNED_MODELS", ("random_forest",))
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400))
-    monkeypatch.setattr(models, "build_candidates", cheap_candidates)
 
 
 @pytest.fixture(scope="module")
@@ -110,7 +107,8 @@ def test_main_prints_the_comparison_for_the_training_set(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["mf", "tune", "--n-iter", "2", "--inner-splits", "2"]
+    argv = ["mf", "tune", "--models", "random_forest", "--n-iter", "2"]
+    argv += ["--inner-splits", "2"]
     monkeypatch.setattr(sys, "argv", argv)
 
     app.main()
@@ -150,3 +148,23 @@ def test_main_rejects_an_unknown_model(
 
     with pytest.raises(SystemExit):
         app.main()
+
+
+@pytest.mark.usefixtures("small_run")
+def test_main_reads_the_settings_from_a_config_file(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    config = tmp_path / "tune.toml"
+    config.write_text('models = ["random_forest"]\nn_iter = 2\ninner_splits = 2\n')
+
+    app.main(["tune", "--config", str(config)])
+
+    assert "2 random settings per search, 2-fold inner" in capsys.readouterr().out
+
+
+def test_main_rejects_settings_out_of_range(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        app.main(["tune", "--n-iter", "0"])
+
+    assert exit_info.value.code == 1
+    assert capsys.readouterr().err == "error: n_iter must be at least 1, not 0\n"

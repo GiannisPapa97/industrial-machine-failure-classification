@@ -1,0 +1,10 @@
+# Tune the four selected models: the same as `uv run mf tune`. Takes about 20
+# minutes on 4 cores; set n_jobs = -1 to use every core.
+models = ["random_forest", "extra_trees", "hist_gradient_boosting", "xgboost"]
+n_iter = 20
+inner_splits = 3
+n_repeats = 1
+
+# The train/test split is fixed for the project and is not a setting.
+[data]
+path = "data/raw/ai4i2020.csv"

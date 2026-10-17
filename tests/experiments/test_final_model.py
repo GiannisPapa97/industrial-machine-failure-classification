@@ -121,3 +121,21 @@ def test_main_rejects_a_model_without_tuned_settings(
         == "error: knn has no tuned settings; set tuned = false\n"
     )
     assert not (tmp_path / "m.joblib").exists()
+
+
+def test_data_reads_another_dataset(
+    make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    seen: list[Path] = []
+
+    def load(path: Path) -> tuple[pd.DataFrame, pd.Series]:
+        seen.append(path)
+        return make_xy(n=400)
+
+    monkeypatch.setattr(splits, "load_xy", load)
+    output = tmp_path / "final.joblib"
+
+    app.main(["train", "--data", "other.csv", "--output", str(output)])
+
+    assert seen == [Path("other.csv")]
+    assert output.is_file()

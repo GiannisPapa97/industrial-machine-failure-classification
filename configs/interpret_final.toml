@@ -1,0 +1,4 @@
+# Study the final model on the training rows: the same as `uv run mf interpret`.
+model = "random_forest"
+# threshold = 0.475  # left out: the model's own threshold is used
+n_repeats = 5
