@@ -1,15 +1,19 @@
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
 import joblib
 import pandas as pd
 import pytest
+import sklearn
 
+from machine_failure.cli import UserError
 from machine_failure.models import (
     FINAL_MODEL,
     FINAL_THRESHOLD,
     TUNED_MODELS,
     FinalModel,
+    ModelFileError,
     get_model,
     load_final_model,
     save_final_model,
@@ -106,5 +110,81 @@ def test_loading_something_else_raises(tmp_path: Path) -> None:
     path = tmp_path / "other.joblib"
     joblib.dump({"model": 1}, path)
 
-    with pytest.raises(ValueError, match="not a saved final model"):
+    with pytest.raises(ModelFileError, match="not a saved final model"):
         load_final_model(path)
+
+
+def test_the_metadata_is_saved_and_loaded_with_the_model(
+    trained: FinalModel, tmp_path: Path
+) -> None:
+    path = tmp_path / "final.joblib"
+    with_metadata = FinalModel(
+        trained.name, trained.model, trained.threshold, {"trained_at": "now"}
+    )
+
+    save_final_model(with_metadata, path)
+
+    assert joblib.load(path)["format"] == 2
+    assert load_final_model(path).metadata == {"trained_at": "now"}
+
+
+def test_a_model_saved_before_metadata_still_loads_with_a_warning(
+    trained: FinalModel, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "old.joblib"
+    joblib.dump({"name": trained.name, "model": trained.model, "threshold": 0.4}, path)
+
+    with caplog.at_level(logging.WARNING, logger="machine_failure"):
+        loaded = load_final_model(path)
+
+    assert (loaded.threshold, loaded.metadata) == (0.4, {})
+    assert "saved without metadata" in caplog.text
+
+
+def test_an_unknown_format_is_refused(trained: FinalModel, tmp_path: Path) -> None:
+    path = tmp_path / "future.joblib"
+    save_final_model(trained, path)
+    saved = joblib.load(path)
+    joblib.dump({**saved, "format": 3}, path)
+
+    with pytest.raises(ModelFileError, match="format 3"):
+        load_final_model(path)
+
+
+def test_a_file_that_is_not_a_pickle_is_a_model_file_error(tmp_path: Path) -> None:
+    path = tmp_path / "rows.csv"
+    path.write_text("Type,Torque\nL,40\n")
+
+    with pytest.raises(ModelFileError, match="cannot be read") as error_info:
+        load_final_model(path)
+    assert isinstance(error_info.value, UserError)  # reported in one line
+
+
+def test_another_scikit_learn_version_gives_a_warning(
+    trained: FinalModel, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "final.joblib"
+    metadata = {"versions": {"scikit-learn": "0.0.1"}}
+    save_final_model(
+        FinalModel(trained.name, trained.model, trained.threshold, metadata), path
+    )
+
+    with caplog.at_level(logging.WARNING, logger="machine_failure"):
+        load_final_model(path)
+
+    assert "saved with scikit-learn 0.0.1" in caplog.text
+
+
+def test_the_same_scikit_learn_version_is_silent(
+    trained: FinalModel, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "final.joblib"
+    metadata = {"versions": {"scikit-learn": sklearn.__version__}}
+    save_final_model(
+        FinalModel(trained.name, trained.model, trained.threshold, metadata), path
+    )
+
+    with caplog.at_level(logging.WARNING, logger="machine_failure"):
+        load_final_model(path)
+
+    assert caplog.text == ""

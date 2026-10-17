@@ -11,7 +11,7 @@ from machine_failure.models import (
     FinalModel,
     load_final_model,
 )
-from machine_failure.pipelines import TrainingPipeline, TrainingResult, splits
+from machine_failure.pipelines import TrainingPipeline, TrainingResult, splits, training
 
 
 def test_describe_says_what_was_trained() -> None:
@@ -128,3 +128,35 @@ def test_the_trained_model_gets_the_threshold_of_its_own_model(make_xy: MakeXY) 
     final = TrainingPipeline(TrainingConfig(model="xgboost")).fit(*make_xy(n=300)).final
 
     assert final.threshold == 0.654
+
+
+@pytest.mark.usefixtures("synthetic_data")
+def test_run_records_how_the_model_was_made() -> None:
+    metadata = TrainingPipeline().run().final.metadata
+
+    assert metadata["config"]["model"] == "random_forest"
+    assert metadata["config"]["output_path"] == str(TrainingConfig().output_path)
+    assert metadata["threshold_source"] == "the tuned random_forest model's own"
+    assert (metadata["training_rows"], metadata["training_failures"]) == (320, 32)
+    assert set(metadata["split"]) == {"data_sha256", "test_rows_sha256"}
+    versions = metadata["versions"]
+    assert {"python", "scikit-learn", "xgboost-cpu", "numpy", "pandas"} <= set(versions)
+    assert "not installed" not in versions.values()
+    assert metadata["trained_at"].endswith("+00:00")
+
+
+def test_a_threshold_set_in_the_config_is_recorded_as_such(make_xy: MakeXY) -> None:
+    config = TrainingConfig(model="knn", tuned=False, threshold=0.5)
+
+    metadata = TrainingPipeline(config).fit(*make_xy(n=300)).final.metadata
+
+    assert metadata["threshold_source"] == "set in the config"
+    assert "split" not in metadata  # fit alone does not know the held-out rows
+
+
+def test_a_missing_package_is_recorded_as_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(training, "PROJECT", "no-such-distribution-here")
+
+    assert training.library_versions()["no-such-distribution-here"] == "not installed"

@@ -7,7 +7,7 @@ import pytest
 from machine_failure.config import DataConfig
 from machine_failure.data import split_train_test
 from machine_failure.pipelines import splits
-from machine_failure.pipelines.splits import load_split
+from machine_failure.pipelines.splits import load_split, split_fingerprint
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -52,3 +52,36 @@ def test_the_split_is_the_project_split(
     expected_train, expected_test, _, _ = split_train_test(*make_xy(n=400))
     assert X_train.index.equals(expected_train.index)
     assert X_test.index.equals(expected_test.index)
+
+
+def test_the_fingerprint_identifies_the_data_and_the_held_out_rows(
+    make_xy: MakeXY,
+) -> None:
+    parts = split_train_test(*make_xy(n=400))
+
+    first = split_fingerprint(*parts)
+
+    assert first == split_fingerprint(*parts)
+    assert set(first) == {"data_sha256", "test_rows_sha256"}
+
+
+def test_other_held_out_rows_change_the_fingerprint(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400)
+    default = split_fingerprint(*split_train_test(X, y))
+
+    other = split_fingerprint(*split_train_test(X, y, random_state=7))
+
+    assert other["data_sha256"] == default["data_sha256"]  # same data
+    assert other["test_rows_sha256"] != default["test_rows_sha256"]
+
+
+def test_changed_data_changes_the_fingerprint(make_xy: MakeXY) -> None:
+    X, y = make_xy(n=400)
+    default = split_fingerprint(*split_train_test(X, y))
+
+    changed = X.copy()
+    changed.loc[changed.index[0], "Torque"] = float(changed["Torque"].iloc[0]) + 1.0
+    other = split_fingerprint(*split_train_test(changed, y))
+
+    assert other["data_sha256"] != default["data_sha256"]
+    assert other["test_rows_sha256"] == default["test_rows_sha256"]

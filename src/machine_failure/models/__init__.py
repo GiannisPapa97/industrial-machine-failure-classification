@@ -20,6 +20,7 @@ from machine_failure.models.final import (
     FINAL_THRESHOLD,
     MODEL_PATH,
     FinalModel,
+    ModelFileError,
     load_final_model,
     save_final_model,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "TUNED_MODELS",
     "TUNED_SETTINGS",
     "FinalModel",
+    "ModelFileError",
     "Model",
     "Role",
     "SearchSpace",
