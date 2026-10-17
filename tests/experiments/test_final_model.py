@@ -6,7 +6,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from machine_failure.config import ConfigError
 from machine_failure.experiments import final_model
 from machine_failure.models import FINAL_THRESHOLD, load_final_model
 from machine_failure.pipelines import splits
@@ -38,7 +37,10 @@ def test_main_trains_on_the_training_set_and_saves(
 
 
 def test_main_accepts_a_threshold_and_refuses_to_overwrite(
-    small_run: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    small_run: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "final.joblib"
     argv = ["final_model", "--output", str(path), "--threshold", "0.3"]
@@ -47,8 +49,9 @@ def test_main_accepts_a_threshold_and_refuses_to_overwrite(
     final_model.main()
     assert load_final_model(path).threshold == 0.3
 
-    with pytest.raises(FileExistsError):
+    with pytest.raises(SystemExit):
         final_model.main()
+    assert "already exists" in capsys.readouterr().err
     monkeypatch.setattr(sys, "argv", [*argv, "--overwrite"])
     final_model.main()
 
@@ -104,13 +107,20 @@ def test_the_example_config_trains_the_same_model_as_the_defaults(
 
 
 def test_main_rejects_a_model_without_tuned_settings(
-    small_run: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    small_run: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
     argv = ["final_model", "--model", "knn", "--output", str(tmp_path / "m.joblib")]
     monkeypatch.setattr(sys, "argv", argv)
 
-    with pytest.raises(ConfigError, match="knn has no tuned settings"):
+    with pytest.raises(SystemExit):
         final_model.main()
+    assert (
+        capsys.readouterr().err
+        == "error: knn has no tuned settings; set tuned = false\n"
+    )
     assert not (tmp_path / "m.joblib").exists()
 
 

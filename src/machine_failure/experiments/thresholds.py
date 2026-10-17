@@ -10,6 +10,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from machine_failure.cli import command
 from machine_failure.data import load_xy, split_train_test
 from machine_failure.evaluation import (
     DEFAULT_TARGETS,
@@ -23,6 +24,7 @@ from machine_failure.evaluation import (
 from machine_failure.models import build_tuned_models
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

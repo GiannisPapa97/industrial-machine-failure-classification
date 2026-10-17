@@ -2,11 +2,13 @@
 
 import argparse
 
+from machine_failure.cli import command
 from machine_failure.data import load_xy, split_train_test
 from machine_failure.evaluation import compare_models, describe_run, format_comparison
 from machine_failure.models import build_baselines
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

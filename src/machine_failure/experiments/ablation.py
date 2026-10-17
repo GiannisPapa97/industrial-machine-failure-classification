@@ -5,6 +5,7 @@ import sys
 
 import pandas as pd
 
+from machine_failure.cli import command
 from machine_failure.config import ComparisonConfig
 from machine_failure.data import RANDOM_STATE
 from machine_failure.evaluation import METRICS, N_SPLITS, describe_run
@@ -69,6 +70,7 @@ def format_feature_set_table(table: pd.DataFrame, metric: str = "pr_auc") -> str
     return cells.reindex(order).to_string()
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

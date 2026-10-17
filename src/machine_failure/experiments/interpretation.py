@@ -8,6 +8,7 @@ evaluation no longer honest.
 
 import argparse
 
+from machine_failure.cli import command
 from machine_failure.data import (
     FEATURE_COLUMNS,
     TARGET_COLUMN,
@@ -23,6 +24,7 @@ from machine_failure.evaluation import (
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, build_tuned_models
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

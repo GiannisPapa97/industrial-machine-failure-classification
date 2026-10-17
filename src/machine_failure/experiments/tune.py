@@ -7,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 
+from machine_failure.cli import command
 from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
 from machine_failure.evaluation import (
     MAIN_METRIC,
@@ -116,6 +117,7 @@ def format_results(results: dict[str, TuningResult]) -> str:
     return "\n".join(lines)
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

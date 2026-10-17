@@ -4,11 +4,13 @@ import argparse
 import dataclasses
 from pathlib import Path
 
+from machine_failure.cli import command
 from machine_failure.config import TrainingConfig, load_config
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
 from machine_failure.pipelines import TrainingPipeline
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

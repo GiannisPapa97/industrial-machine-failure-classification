@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from machine_failure.cli import command
 from machine_failure.config import ComparisonConfig, load_config
 from machine_failure.evaluation import format_comparison
 from machine_failure.pipelines import ComparisonPipeline
@@ -17,6 +18,7 @@ def sort_by_metric(table: pd.DataFrame, metric: str = "pr_auc") -> pd.DataFrame:
     return table.reindex(order.index)
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

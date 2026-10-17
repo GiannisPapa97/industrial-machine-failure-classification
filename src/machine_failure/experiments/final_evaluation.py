@@ -10,11 +10,13 @@ import dataclasses
 import sys
 from pathlib import Path
 
+from machine_failure.cli import command
 from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_config
 from machine_failure.models import MODEL_PATH
 from machine_failure.pipelines import EvaluationPipeline, UnconfirmedTestSetError
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
