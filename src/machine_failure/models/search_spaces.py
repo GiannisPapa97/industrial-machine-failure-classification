@@ -8,11 +8,8 @@ of the search: class weights for the tree models, and ``scale_pos_weight`` for
 XGBoost.
 """
 
-from typing import Any
-
+from machine_failure.models.base import SearchSpace
 from machine_failure.models.candidates import SCALE_POS_WEIGHT
-
-SearchSpace = dict[str, list[Any]]
 
 SEARCH_SPACES: dict[str, SearchSpace] = {
     "random_forest": {
