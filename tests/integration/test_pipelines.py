@@ -10,6 +10,7 @@ import pandas as pd
 
 from machine_failure.config import ComparisonConfig
 from machine_failure.evaluation import compare_models
+from machine_failure.experiments.ablation import compare_feature_sets
 from machine_failure.models import build_all_models
 from machine_failure.pipelines import ComparisonPipeline
 
@@ -31,3 +32,26 @@ def test_the_comparison_pipeline_scores_like_compare_models(
     )
     pd.testing.assert_frame_equal(result.table, expected)
     assert (result.n_rows, result.n_failures) == (8000, 271)
+
+
+def test_the_feature_set_comparison_scores_like_compare_models(
+    real_data: SimpleNamespace,
+) -> None:
+    table = compare_feature_sets(
+        real_data.X_train,
+        real_data.y_train,
+        feature_sets=("raw", "computed"),
+        models=QUICK_MODELS,
+    )
+
+    for feature_set in ("raw", "computed"):
+        models = build_all_models(feature_set)
+        expected = compare_models(
+            {name: models[name] for name in QUICK_MODELS},
+            real_data.X_train,
+            real_data.y_train,
+        )
+        columns = [c for c in table.columns if c[0] == feature_set]
+        pd.testing.assert_frame_equal(
+            table.loc[:, columns].droplevel(0, axis=1), expected
+        )
