@@ -548,8 +548,10 @@ otherwise the 90% coverage threshold fails.
 
 In CI, the `test` job runs the unit tests with coverage (`-m "not integration"`),
 and a separate `integration` job downloads the dataset (cached between runs) and
-runs the integration tests, which takes several minutes. Together they check that
-a change keeps both the code covered and the recorded results unchanged.
+runs the integration tests, which takes several minutes. The job fails if the
+dataset is missing, so a failed download cannot pass as skipped tests. Together
+they check that a change keeps both the code covered and the recorded results
+unchanged.
 
 ## Layout
 

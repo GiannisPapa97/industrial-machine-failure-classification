@@ -116,5 +116,13 @@ jobs:
       - name: Download the dataset
         run: uv run python -m machine_failure.data
 
+      # A skipped test counts as a pass, so fail loudly if the dataset is missing.
+      - name: Check that the dataset is present
+        run: |
+          if [ ! -f data/raw/ai4i2020.csv ]; then
+            echo "::error::The dataset is missing, so the integration tests would be skipped."
+            exit 1
+          fi
+
       - name: Integration tests
         run: uv run pytest -m integration --no-cov
