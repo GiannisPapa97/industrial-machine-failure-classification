@@ -5,8 +5,15 @@ import joblib
 import pandas as pd
 import pytest
 
-from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, FinalModel, load_final_model, save_final_model, train_final_model
-from machine_failure.models import TUNED_MODELS
+from machine_failure.models import (
+    FINAL_MODEL,
+    FINAL_THRESHOLD,
+    TUNED_MODELS,
+    FinalModel,
+    load_final_model,
+    save_final_model,
+    train_final_model,
+)
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

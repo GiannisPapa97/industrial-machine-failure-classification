@@ -85,9 +85,7 @@ def load_final_model(path: Path = MODEL_PATH) -> FinalModel:
     arbitrary code when loaded.
     """
     if not path.is_file():
-        raise FileNotFoundError(
-            f"{path} not found; run `uv run mf-train` first"
-        )
+        raise FileNotFoundError(f"{path} not found; run `uv run mf-train` first")
     saved = joblib.load(path)
     if not isinstance(saved, dict) or set(saved) != SAVED_KEYS:
         raise ValueError(f"{path} is not a saved final model")

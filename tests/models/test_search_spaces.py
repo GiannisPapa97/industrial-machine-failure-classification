@@ -4,8 +4,12 @@ import pandas as pd
 import pytest
 from sklearn.base import clone
 
-from machine_failure.models import SCALE_POS_WEIGHT, build_candidates
-from machine_failure.models import SEARCH_SPACES, TUNED_MODELS
+from machine_failure.models import (
+    SCALE_POS_WEIGHT,
+    SEARCH_SPACES,
+    TUNED_MODELS,
+    build_candidates,
+)
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

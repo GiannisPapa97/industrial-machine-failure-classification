@@ -5,9 +5,13 @@ import pytest
 
 from machine_failure.evaluation import SETTING_PREFIX
 from machine_failure.features import FEATURE_SETS, FeatureSet, build_preprocessor
-from machine_failure.models import build_candidates
-from machine_failure.models import SEARCH_SPACES, TUNED_MODELS
-from machine_failure.models import TUNED_SETTINGS, build_tuned_models
+from machine_failure.models import (
+    SEARCH_SPACES,
+    TUNED_MODELS,
+    TUNED_SETTINGS,
+    build_candidates,
+    build_tuned_models,
+)
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

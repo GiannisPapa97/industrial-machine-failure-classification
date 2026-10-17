@@ -13,9 +13,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 from xgboost import XGBClassifier
 
-from machine_failure.models.baselines import build_baselines
 from machine_failure.data import RANDOM_STATE
 from machine_failure.features import FeatureSet, build_preprocessor
+from machine_failure.models.baselines import build_baselines
 
 # Roughly the number of normal rows per failure (about 28.5 in the training
 # data). XGBoost has no ``class_weight``; this scales the weight of failures.
