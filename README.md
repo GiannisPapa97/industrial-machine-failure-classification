@@ -526,6 +526,26 @@ posts it as a single comment on the pull request that is updated on each push.
 The tests fail if total coverage drops below 90% (`fail_under` in
 `pyproject.toml`).
 
+### Unit and integration tests
+
+The unit tests in `tests/` use small synthetic data and need no download. The
+integration tests in `tests/integration/` run the real workflows on the real
+dataset and compare the results with the numbers recorded in this README, so a
+refactoring that changes a result is caught. They are marked `integration`
+automatically, and are skipped when the dataset has not been downloaded
+(`uv run python -m machine_failure.data`). Tests that take more than about 30
+seconds are also marked `slow`.
+
+```bash
+uv run pytest                                    # everything
+uv run pytest -m "not integration"               # unit tests only, with coverage
+uv run pytest -m integration --no-cov            # integration tests only
+uv run pytest -m "integration and not slow" --no-cov
+```
+
+Add `--no-cov` when running a subset that does not cover the whole package,
+otherwise the 90% coverage threshold fails.
+
 ## Layout
 
 ```
