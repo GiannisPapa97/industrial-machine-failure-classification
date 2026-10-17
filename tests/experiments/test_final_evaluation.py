@@ -6,10 +6,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from machine_failure.config import TrainingConfig
+from machine_failure.config import EvaluationConfig, TrainingConfig, load_config
 from machine_failure.data import split_train_test
 from machine_failure.experiments import final_evaluation
-from machine_failure.pipelines import TrainingPipeline, splits
+from machine_failure.pipelines import TrainingPipeline, evaluation, splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -29,8 +29,6 @@ def saved_model(make_xy: MakeXY, tmp_path: Path) -> Path:
 @pytest.fixture
 def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic dataset instead of the downloaded one."""
-    monkeypatch.setattr(final_evaluation, "load_xy", lambda: make_xy(signal=6.0))
-    # Running the module as a script re-imports it, so patch the source too.
     monkeypatch.setattr(splits, "load_xy", lambda path: make_xy(signal=6.0))
 
 
@@ -42,8 +40,8 @@ def test_main_refuses_to_use_the_test_set_without_confirmation(
     def must_not_run(*args: object, **kwargs: object) -> None:
         raise AssertionError("the data must not be read without --confirm")
 
-    monkeypatch.setattr(final_evaluation, "load_xy", must_not_run)
-    monkeypatch.setattr(final_evaluation, "evaluate_final", must_not_run)
+    monkeypatch.setattr(splits, "load_xy", must_not_run)
+    monkeypatch.setattr(evaluation, "evaluate_final", must_not_run)
     monkeypatch.setattr(
         sys, "argv", ["final_evaluation", "--model-path", str(saved_model)]
     )
@@ -83,6 +81,58 @@ def test_main_adds_the_cross_validation_reference_by_default(
     final_evaluation.main()
 
     assert "cross-validation" in capsys.readouterr().out
+
+
+def test_main_reads_the_settings_from_a_config_file(
+    small_run: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    saved_model: Path,
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "evaluate.toml"
+    config.write_text(
+        f'model_path = "{saved_model}"\nn_bootstrap = 30\nreference = false\n'
+        "[data]\ntest_size = 0.5\n"
+    )
+    argv = ["final_evaluation", "--confirm", "--config", str(config)]
+    monkeypatch.setattr(sys, "argv", argv)
+
+    final_evaluation.main()
+
+    out = capsys.readouterr().out
+    assert "on the test set (300 rows, 30 failures)" in out  # 50% of 600 rows
+    assert "cross-validation" not in out
+
+
+def test_command_line_options_override_the_config_file(
+    small_run: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    saved_model: Path,
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "evaluate.toml"
+    config.write_text(f'model_path = "{tmp_path / "nope.joblib"}"\nreference = true\n')
+    argv = ["final_evaluation", "--confirm", "--config", str(config)]
+    argv += [
+        "--model-path",
+        str(saved_model),
+        "--skip-reference",
+        "--n-bootstrap",
+        "20",
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+
+    final_evaluation.main()
+
+    assert "cross-validation" not in capsys.readouterr().out
+
+
+def test_the_example_config_is_the_default_evaluation() -> None:
+    example = Path(__file__).parents[2] / "configs" / "evaluate_final.toml"
+
+    assert load_config(example, EvaluationConfig) == EvaluationConfig()
 
 
 def test_main_points_to_the_command_that_creates_a_missing_model(

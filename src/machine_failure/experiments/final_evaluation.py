@@ -6,17 +6,13 @@ to tune the model or the threshold.
 """
 
 import argparse
+import dataclasses
 import sys
 from pathlib import Path
 
-from machine_failure.config import N_BOOTSTRAP
-from machine_failure.data import load_xy, split_train_test
-from machine_failure.models import MODEL_PATH, load_final_model
-from machine_failure.pipelines.evaluation import (
-    cross_validated_reference,
-    evaluate_final,
-    format_evaluation,
-)
+from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_config
+from machine_failure.models import MODEL_PATH
+from machine_failure.pipelines import EvaluationPipeline, UnconfirmedTestSetError
 
 
 def main() -> None:
@@ -28,15 +24,19 @@ def main() -> None:
         "be done once",
     )
     parser.add_argument(
+        "--config",
+        type=Path,
+        help="TOML file with the evaluation settings (see configs/evaluate_final."
+        "toml); the options below override it",
+    )
+    parser.add_argument(
         "--model-path",
         type=Path,
-        default=MODEL_PATH,
         help=f"the saved final model (default: {MODEL_PATH})",
     )
     parser.add_argument(
         "--n-bootstrap",
         type=int,
-        default=N_BOOTSTRAP,
         help=f"bootstrap resamples for the intervals (default: {N_BOOTSTRAP})",
     )
     parser.add_argument(
@@ -46,24 +46,27 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not args.confirm:
+    config = load_config(args.config, EvaluationConfig) if args.config else None
+    config = config or EvaluationConfig()
+    overrides = {
+        "model_path": args.model_path,
+        "n_bootstrap": args.n_bootstrap,
+        "reference": False if args.skip_reference else None,
+    }
+    config = dataclasses.replace(
+        config, **{key: value for key, value in overrides.items() if value is not None}
+    )
+
+    try:
+        result = EvaluationPipeline(config).run(confirm=args.confirm)
+    except UnconfirmedTestSetError:
         print(
             "The test set is meant to be used once, on the final model. "
             "Run again with --confirm to evaluate on it.",
             file=sys.stderr,
         )
-        raise SystemExit(1)
-
-    X, y = load_xy()
-    X_train, X_test, y_train, y_test = split_train_test(X, y)
-    final = load_final_model(args.model_path)
-    result = evaluate_final(final, X_test, y_test, n_bootstrap=args.n_bootstrap)
-    reference = None
-    if not args.skip_reference:
-        reference = cross_validated_reference(
-            final.name, final.threshold, X_train, y_train
-        )
-    print(format_evaluation(result, reference))
+        raise SystemExit(1) from None
+    print(result.format())
 
 
 if __name__ == "__main__":
