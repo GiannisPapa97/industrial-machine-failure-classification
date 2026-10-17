@@ -7,7 +7,6 @@ from typing import Any
 
 import pandas as pd
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
 from machine_failure.evaluation import (
     MAIN_METRIC,
@@ -23,6 +22,8 @@ from machine_failure.evaluation import (
 from machine_failure.models import SEARCH_SPACES, TUNED_MODELS, build_candidates
 
 logger = logging.getLogger(__name__)
+
+HELP = "tune the selected models with nested cross-validation"
 
 
 @dataclass
@@ -115,9 +116,8 @@ def format_results(results: dict[str, TuningResult]) -> str:
     return "\n".join(lines)
 
 
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """The options of ``mf tune``."""
     parser.add_argument(
         "--models",
         nargs="+",
@@ -149,10 +149,10 @@ def main() -> None:
         default=None,
         help="parallel jobs; -1 uses every core (default: 1)",
     )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
+
+def run(args: argparse.Namespace) -> None:
+    """``mf tune``: tune the models and compare them with their defaults."""
     X, y = load_xy()
     X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
     results = tune_models(
@@ -172,7 +172,3 @@ def main() -> None:
         f"cross-validation on the same {N_SPLITS} outer folds as the default."
     )
     print(format_results(results))
-
-
-if __name__ == "__main__":
-    main()

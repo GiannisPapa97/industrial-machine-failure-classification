@@ -1,4 +1,3 @@
-import runpy
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,6 +7,7 @@ import pytest
 import ucimlrepo
 
 from machine_failure.data import download
+from machine_failure.experiments import app
 
 
 @pytest.fixture
@@ -67,9 +67,9 @@ def test_main_downloads_to_dest_and_prints_path(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["data", "--dest", str(tmp_path)])
+    monkeypatch.setattr(sys, "argv", ["mf", "download", "--dest", str(tmp_path)])
 
-    download.main()
+    app.main()
 
     expected = tmp_path / download.RAW_FILENAME
     assert capsys.readouterr().out.strip() == str(expected)
@@ -84,37 +84,11 @@ def test_main_overwrite_flag_replaces_existing_file(
 ) -> None:
     path = tmp_path / download.RAW_FILENAME
     path.write_text("old\n")
-    monkeypatch.setattr(sys, "argv", ["data", "--dest", str(tmp_path), "--overwrite"])
+    monkeypatch.setattr(
+        sys, "argv", ["mf", "download", "--dest", str(tmp_path), "--overwrite"]
+    )
 
-    download.main()
+    app.main()
 
     assert pd.read_csv(path).shape == (2, 2)
-    assert fake_fetch == [download.UCI_DATASET_ID]
-
-
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_package_runs_main_when_executed_as_script(
-    tmp_path: Path,
-    fake_fetch: list[int],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(sys, "argv", ["data", "--dest", str(tmp_path)])
-
-    runpy.run_module("machine_failure.data", run_name="__main__")
-
-    assert (tmp_path / download.RAW_FILENAME).is_file()
-    assert fake_fetch == [download.UCI_DATASET_ID]
-
-
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_download_module_runs_main_when_executed_as_script(
-    tmp_path: Path,
-    fake_fetch: list[int],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(sys, "argv", ["download", "--dest", str(tmp_path)])
-
-    runpy.run_module("machine_failure.data.download", run_name="__main__")
-
-    assert (tmp_path / download.RAW_FILENAME).is_file()
     assert fake_fetch == [download.UCI_DATASET_ID]

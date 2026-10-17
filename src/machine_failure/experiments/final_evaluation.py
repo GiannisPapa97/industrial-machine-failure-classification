@@ -9,27 +9,23 @@ import argparse
 import sys
 from pathlib import Path
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_or_default
+from machine_failure.experiments.options import add_config_option
 from machine_failure.models import MODEL_PATH
 from machine_failure.pipelines import EvaluationPipeline, UnconfirmedTestSetError
 
+HELP = "evaluate the final model once on the held-out test set"
 
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """The options of ``mf evaluate``."""
     parser.add_argument(
         "--confirm",
         action="store_true",
         help="required: confirms you want to use the test set, which is meant to "
         "be done once",
     )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        help="TOML file with the evaluation settings (see configs/evaluate_final."
-        "toml); the options below override it",
-    )
+    add_config_option(parser, "evaluate_final.toml")
     parser.add_argument(
         "--model-path",
         type=Path,
@@ -45,10 +41,10 @@ def main() -> None:
         action="store_true",
         help="do not compute the cross-validation reference (saves about a minute)",
     )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
+
+def run(args: argparse.Namespace) -> None:
+    """``mf evaluate``: score the saved model once on the test set."""
     config = load_or_default(
         args.config,
         EvaluationConfig,
@@ -56,7 +52,6 @@ def main() -> None:
         n_bootstrap=args.n_bootstrap,
         reference=False if args.skip_reference else None,
     )
-
     try:
         result = EvaluationPipeline(config).run(confirm=args.confirm)
     except UnconfirmedTestSetError:
@@ -67,7 +62,3 @@ def main() -> None:
         )
         raise SystemExit(1) from None
     print(result.format())
-
-
-if __name__ == "__main__":
-    main()

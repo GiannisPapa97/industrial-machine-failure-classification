@@ -1,4 +1,3 @@
-import runpy
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -7,7 +6,7 @@ import pandas as pd
 import pytest
 
 from machine_failure.config import TrainingConfig
-from machine_failure.experiments import predict
+from machine_failure.experiments import app
 from machine_failure.pipelines import TrainingPipeline
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
@@ -32,9 +31,11 @@ def test_main_prints_one_row_of_scores_per_input_row(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     model, rows = files
-    monkeypatch.setattr(sys, "argv", ["predict", str(rows), "--model-path", str(model)])
+    monkeypatch.setattr(
+        sys, "argv", ["mf", "predict", str(rows), "--model-path", str(model)]
+    )
 
-    predict.main()
+    app.main()
 
     captured = capsys.readouterr()
     lines = captured.out.splitlines()
@@ -48,17 +49,25 @@ def test_main_writes_the_scores_to_a_file_and_refuses_to_overwrite(
 ) -> None:
     model, rows = files
     out = tmp_path / "scores.csv"
-    argv = ["predict", str(rows), "--model-path", str(model), "--output", str(out)]
+    argv = [
+        "mf",
+        "predict",
+        str(rows),
+        "--model-path",
+        str(model),
+        "--output",
+        str(out),
+    ]
     monkeypatch.setattr(sys, "argv", argv)
 
-    predict.main()
+    app.main()
     scores = pd.read_csv(out, index_col="row")
     assert list(scores.columns) == ["probability", "flagged"] and len(scores) == 40
 
     with pytest.raises(SystemExit):
-        predict.main()
+        app.main()
     monkeypatch.setattr(sys, "argv", [*argv, "--overwrite"])
-    predict.main()
+    app.main()
 
 
 def test_main_rejects_rows_without_the_feature_columns(
@@ -70,24 +79,12 @@ def test_main_rejects_rows_without_the_feature_columns(
     model, _ = files
     bad = tmp_path / "bad.csv"
     bad.write_text("Type\nL\n")
-    monkeypatch.setattr(sys, "argv", ["predict", str(bad), "--model-path", str(model)])
+    monkeypatch.setattr(
+        sys, "argv", ["mf", "predict", str(bad), "--model-path", str(model)]
+    )
 
     with pytest.raises(SystemExit) as exit_info:
-        predict.main()
+        app.main()
 
     assert exit_info.value.code == 1
     assert capsys.readouterr().err.startswith("error: missing feature columns")
-
-
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    files: tuple[Path, Path],
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    model, rows = files
-    monkeypatch.setattr(sys, "argv", ["predict", str(rows), "--model-path", str(model)])
-
-    runpy.run_module("machine_failure.experiments.predict", run_name="__main__")
-
-    assert "row,probability,flagged" in capsys.readouterr().out

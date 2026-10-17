@@ -1,4 +1,3 @@
-import runpy
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -9,7 +8,7 @@ import pytest
 from machine_failure import models
 from machine_failure.config import ComparisonConfig, load_config
 from machine_failure.evaluation import METRICS
-from machine_failure.experiments import comparison
+from machine_failure.experiments import app
 from machine_failure.experiments.comparison import sort_by_metric
 from machine_failure.models import build_all_models, build_baselines
 from machine_failure.pipelines import ComparisonPipeline, splits
@@ -65,13 +64,13 @@ def test_main_prints_models_sorted_by_pr_auc(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["comparison"])
+    monkeypatch.setattr(sys, "argv", ["mf", "compare"])
 
-    comparison.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "480 rows, 48 failures" in out  # 80% of 600 rows, 10% failures
-    assert "ordered by mean PR-AUC" in out
+    assert "ordered by mean pr_auc" in out
     # logistic regression beats the dummy, so it is listed first
     assert out.index("logistic_regression") < out.index("dummy")
 
@@ -81,9 +80,9 @@ def test_main_accepts_repeats(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["comparison", "--repeats", "2"])
+    monkeypatch.setattr(sys, "argv", ["mf", "compare", "--repeats", "2"])
 
-    comparison.main()
+    app.main()
 
     assert "2 repeat(s)" in capsys.readouterr().out
 
@@ -98,10 +97,10 @@ def synthetic_data(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_main_compares_only_the_requested_models(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    argv = ["comparison", "--models", "dummy", "logistic_regression"]
+    argv = ["mf", "compare", "--models", "dummy", "logistic_regression"]
     monkeypatch.setattr(sys, "argv", argv)
 
-    comparison.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "logistic_regression" in out and "random_forest" not in out
@@ -118,9 +117,9 @@ def test_main_reads_the_settings_from_a_config_file(
         'models = ["dummy", "logistic_regression"]\nn_splits = 3\nn_repeats = 2\n'
         '[data]\npath = "other.csv"\n'
     )
-    monkeypatch.setattr(sys, "argv", ["comparison", "--config", str(config)])
+    monkeypatch.setattr(sys, "argv", ["mf", "compare", "--config", str(config)])
 
-    comparison.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "3-fold" in out and "480 rows, 48 failures" in out and "2 repeat(s)" in out
@@ -136,7 +135,8 @@ def test_command_line_options_override_the_config_file(
     config = tmp_path / "compare.toml"
     config.write_text('models = ["dummy", "knn"]\nn_repeats = 2\n')
     argv = [
-        "comparison",
+        "mf",
+        "compare",
         "--config",
         str(config),
         "--models",
@@ -146,7 +146,7 @@ def test_command_line_options_override_the_config_file(
     ]
     monkeypatch.setattr(sys, "argv", argv)
 
-    comparison.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "1 repeat(s)" in out and "knn" not in out
@@ -158,30 +158,17 @@ def test_the_example_config_is_the_default_comparison() -> None:
     assert load_config(example, ComparisonConfig) == ComparisonConfig()
 
 
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    fast_run: None,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setattr(sys, "argv", ["comparison"])
-
-    runpy.run_module("machine_failure.experiments.comparison", run_name="__main__")
-
-    assert "logistic_regression" in capsys.readouterr().out
-
-
 @pytest.mark.usefixtures("synthetic_data")
 def test_main_logs_progress_unless_quiet(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    argv = ["comparison", "--models", "dummy"]
+    argv = ["mf", "compare", "--models", "dummy"]
     monkeypatch.setattr(sys, "argv", argv)
-    comparison.main()
+    app.main()
     assert "cross-validating dummy" in capsys.readouterr().err
 
     monkeypatch.setattr(sys, "argv", [*argv, "--quiet"])
-    comparison.main()
+    app.main()
     captured = capsys.readouterr()
     assert captured.err == ""
     assert "dummy" in captured.out  # the results are still printed

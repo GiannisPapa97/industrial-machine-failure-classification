@@ -1,4 +1,3 @@
-import runpy
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -10,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from machine_failure import data, models
-from machine_failure.experiments import thresholds
+from machine_failure.experiments import app, thresholds
 from machine_failure.models import with_preprocessing
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
@@ -39,9 +38,9 @@ def test_main_prints_the_comparison_for_the_training_set(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["thresholds"])
+    monkeypatch.setattr(sys, "argv", ["mf", "thresholds"])
 
-    thresholds.main()
+    app.main()
 
     captured = capsys.readouterr()
     assert "320 rows, 32 failures" in captured.out  # 80% of 400 rows, 10% failures
@@ -61,25 +60,12 @@ def test_main_accepts_targets_and_saves_a_plot(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "pr.png"
-    argv = ["thresholds", "--targets", "0.7", "--plot", str(path)]
+    argv = ["mf", "thresholds", "--targets", "0.7", "--plot", str(path)]
     monkeypatch.setattr(sys, "argv", argv)
 
-    thresholds.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "70%" in out and "85%" not in out
     assert f"Plot saved to {path}" in out
     assert path.is_file()
-
-
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    small_run: None,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setattr(sys, "argv", ["thresholds"])
-
-    runpy.run_module("machine_failure.experiments.thresholds", run_name="__main__")
-
-    assert "At each recall target" in capsys.readouterr().out

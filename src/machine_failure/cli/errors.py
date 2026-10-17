@@ -22,7 +22,7 @@ EXPECTED_ERRORS: tuple[type[Exception], ...] = (
 )
 
 
-def command(main: Callable[[], None]) -> Callable[[], None]:
+def command[**P](main: Callable[P, None]) -> Callable[P, None]:
     """Decorate a command's ``main`` so expected errors end it with a short message.
 
     An expected error (see ``EXPECTED_ERRORS``) prints ``error: <message>`` on
@@ -31,9 +31,9 @@ def command(main: Callable[[], None]) -> Callable[[], None]:
     """
 
     @functools.wraps(main)
-    def wrapper() -> None:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> None:
         try:
-            main()
+            main(*args, **kwargs)
         except EXPECTED_ERRORS as error:
             print(f"error: {error}", file=sys.stderr)
             raise SystemExit(1) from None

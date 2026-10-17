@@ -1,23 +1,23 @@
-"""The final model: the chosen tuned model, trained on the whole training set."""
+"""Train the final model on the training rows and save it.
+
+By default this is the chosen tuned model (random forest) with its own decision
+threshold. The held-out test rows are not used.
+"""
 
 import argparse
 from pathlib import Path
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import TrainingConfig, load_or_default
+from machine_failure.experiments.options import add_config_option
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
 from machine_failure.pipelines import TrainingPipeline
 
+HELP = "train the final model and save it"
 
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--config",
-        type=Path,
-        help="TOML file with the training settings (see configs/train_final.toml); "
-        "the options below override it",
-    )
+
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """The options of ``mf train``."""
+    add_config_option(parser, "train_final.toml")
     parser.add_argument(
         "--model",
         help=f"tuned model to train (default: {FINAL_MODEL})",
@@ -38,10 +38,10 @@ def main() -> None:
         action="store_true",
         help="replace the file if it already exists",
     )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
+
+def run(args: argparse.Namespace) -> None:
+    """``mf train``: train on the training rows and save the model."""
     config = load_or_default(
         args.config,
         TrainingConfig,
@@ -54,7 +54,3 @@ def main() -> None:
     path = pipeline.save(result, overwrite=args.overwrite)
     print(result.describe())
     print(f"Saved to {path}")
-
-
-if __name__ == "__main__":
-    main()

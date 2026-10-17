@@ -8,7 +8,6 @@ evaluation no longer honest.
 
 import argparse
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.data import (
     FEATURE_COLUMNS,
     TARGET_COLUMN,
@@ -23,10 +22,11 @@ from machine_failure.evaluation import (
 )
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, build_tuned_models
 
+HELP = "what the final model relies on, and which failures it misses"
 
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """The options of ``mf interpret``."""
     parser.add_argument(
         "--model",
         default=FINAL_MODEL,
@@ -44,10 +44,10 @@ def main() -> None:
         default=5,
         help="shuffles per feature and fold in the importance (default: 5)",
     )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
+
+def run(args: argparse.Namespace) -> None:
+    """``mf interpret``: importance and missed failures, on the training rows."""
     raw = load_raw()
     X, y = raw[FEATURE_COLUMNS].copy(), raw[TARGET_COLUMN].copy()
     X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
@@ -71,7 +71,3 @@ def main() -> None:
     print(modes.to_string(float_format=lambda value: f"{value:.3f}"))
     print("\nMedian measurements of normal rows, caught failures and missed failures")
     print(group_medians(X_train, predictions, args.threshold).round(2).to_string())
-
-
-if __name__ == "__main__":
-    main()

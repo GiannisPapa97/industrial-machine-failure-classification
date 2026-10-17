@@ -1,5 +1,4 @@
 import logging
-import runpy
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -11,7 +10,7 @@ from sklearn.pipeline import Pipeline
 
 from machine_failure import data, models
 from machine_failure.evaluation import METRICS
-from machine_failure.experiments import tune
+from machine_failure.experiments import app, tune
 from machine_failure.experiments.tune import (
     TuningResult,
     comparison_table,
@@ -111,10 +110,10 @@ def test_main_prints_the_comparison_for_the_training_set(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["tune", "--n-iter", "2", "--inner-splits", "2"]
+    argv = ["mf", "tune", "--n-iter", "2", "--inner-splits", "2"]
     monkeypatch.setattr(sys, "argv", argv)
 
-    tune.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "320 rows, 32 failures" in out  # 80% of 400 rows, 10% failures
@@ -127,10 +126,19 @@ def test_main_accepts_models_repeats_and_jobs(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["tune", "--models", "random_forest", "--n-iter", "2", "--inner-splits", "2"]
+    argv = [
+        "mf",
+        "tune",
+        "--models",
+        "random_forest",
+        "--n-iter",
+        "2",
+        "--inner-splits",
+        "2",
+    ]
     monkeypatch.setattr(sys, "argv", argv + ["--repeats", "2", "--n-jobs", "2"])
 
-    tune.main()
+    app.main()
 
     assert "2 repeat(s)" in capsys.readouterr().out
 
@@ -138,21 +146,7 @@ def test_main_accepts_models_repeats_and_jobs(
 def test_main_rejects_an_unknown_model(
     small_run: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["tune", "--models", "dummy"])
+    monkeypatch.setattr(sys, "argv", ["mf", "tune", "--models", "dummy"])
 
     with pytest.raises(SystemExit):
-        tune.main()
-
-
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    small_run: None,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    argv = ["tune", "--n-iter", "2", "--inner-splits", "2"]
-    monkeypatch.setattr(sys, "argv", argv)
-
-    runpy.run_module("machine_failure.experiments.tune", run_name="__main__")
-
-    assert "random_forest (default)" in capsys.readouterr().out
+        app.main()
