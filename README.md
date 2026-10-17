@@ -92,7 +92,7 @@ from machine_failure.evaluation import cross_validate_model, summarize_scores
 from machine_failure.features import build_preprocessor
 
 X, y = load_xy()
-X_train, X_test, y_train, y_test = split_train_test(X, y)  # stratified 80/20
+X_train, X_test, y_train, y_test = split_train_test(X, y)  # stratified 80/20, fixed
 
 model = Pipeline(
     [("preprocess", build_preprocessor()), ("model", LogisticRegression())]
@@ -403,8 +403,19 @@ The choice of model and operating point (which recall to aim for) depends on how
 costly a false alarm is compared with a missed failure. The final evaluation
 uses random forest at its best-F1 threshold, 0.475 (about 83% recall with almost
 no false alarms). A threshold near 0.147 would reach 85% recall at the price of
-about 55 false alarms on the training data; change `FINAL_THRESHOLD` in
-`models/final.py` if false alarms are cheaper than missed failures for your use.
+about 55 false alarms on the training data; set `threshold` in a training config
+(or `mf-train --threshold`) if false alarms are cheaper than missed failures for
+your use.
+
+Each tuned model keeps its best-F1 threshold from this table as `Model.threshold`
+(`models/candidates.py`), and training uses the threshold of the model it trains,
+since thresholds do not carry over between models. The table shows thresholds
+rounded to three decimals. For random forest the exact best-F1 threshold is
+0.4746, and one out-of-fold failure has a probability between it and 0.475. At
+0.475 the out-of-fold recall is therefore 223 of 271 failures (0.823, the
+cross-validation column of the final evaluation), against 224 (0.827, this table)
+at 0.4746. The final model keeps 0.475, the value chosen before the test set was
+used: re-choosing it now would mean evaluating on the test set a second time.
 
 ## Final evaluation
 
@@ -419,21 +430,39 @@ uv run mf-interpret              # what it relies on
 - `pipelines/training.py` (`TrainingPipeline`) trains the model a `TrainingConfig`
   describes (by default the chosen tuned model, `FINAL_MODEL`, random forest) on
   the whole training set: load, split, fit on the training rows only. `mf-train`
-  runs it and saves the model with its threshold (`FINAL_THRESHOLD`,
-  0.475) to `models/final_model.joblib`. The `models/` folder is not committed,
+  runs it and saves the model with its threshold (the model's own, 0.475 for
+  random forest, unless one is set) to `models/final_model.joblib`. The `models/` folder is not committed,
   and an existing file is only replaced with `--overwrite`. The threshold was
   chosen on out-of-fold predictions of models trained on 80% of the training
   rows, so it is an approximation for the model refit on all of them.
   `--config FILE.toml` reads the settings from a file (see `configs/`), and
   `--model`, `--threshold` and `--output` override it. Use it in Python with
   `TrainingPipeline(config).run()`, then `.save(result)`.
+- The model file also records how the model was made (`FinalModel.metadata`):
+  the training config, where the threshold came from, the number of training rows
+  and failures, the library versions (Python, scikit-learn, XGBoost, NumPy,
+  pandas), when it was trained, and a fingerprint of the data and of the
+  held-out rows. Loading warns when the model was saved with another
+  scikit-learn version, and a file that is not a saved model is reported in one
+  line. A model saved before this metadata existed still loads, with a warning;
+  retrain it with `uv run mf-train --overwrite` (training is deterministic, so
+  the model is the same) to record it.
+- The train/test split is fixed for the project (stratified 80/20, seed 42) and is
+  not a setting: the model, its settings, the features and the threshold were
+  all chosen on the same training rows, so another split would put rows that
+  shaped those choices into the test set.
 - `pipelines/evaluation.py` (`EvaluationPipeline`) scores the saved model on the test
   set. The test set is meant to be used once, on the final model, so `run` refuses
   to start without `confirm=True` and `mf-evaluate` without `--confirm`, in both
   cases before any data is read. It reports every metric with a 95% bootstrap
   interval (1,000 resamples of the test rows, keeping the number of failures
   fixed) next to the cross-validation estimate at the same threshold. The model is
-  judged at the threshold saved with it. `--config FILE.toml` reads the settings
+  judged at the threshold saved with it, and it is only scored on the rows that
+  were held out when it was trained: the evaluation compares the data and split
+  fingerprints with the ones saved with the model, and refuses on a mismatch or
+  when the model has none. The cross-validation estimate refits copies of the
+  saved model, so it describes that model even when it was trained untuned or on
+  other features. `--config FILE.toml` reads the settings
   from a file; `--model-path`, `--n-bootstrap` and `--skip-reference` override it.
 - `pipelines/inference.py` (`InferencePipeline`) and `mf-predict` score new rows with
   the saved model. The input is a CSV with `Type`, `Air temperature`, `Process
@@ -509,7 +538,7 @@ Limits:
 - The operating point (threshold 0.475) trades missed failures against false
   alarms and should be set from the real cost of each.
 - The saved model is a pickle: load only files you created, with the same
-  scikit-learn version.
+  scikit-learn version (loading warns when it differs).
 
 Using the saved model:
 
@@ -626,9 +655,10 @@ public names, so code imports from the package
 
 Workflow settings are frozen dataclasses in `machine_failure.config`, checked when
 they are created, so a typo or an out-of-range value fails at once with a clear
-message: `DataConfig` (dataset path, test size, seed), `ComparisonConfig` (models,
+message: `DataConfig` (dataset path; the split is fixed), `ComparisonConfig` (models,
 feature set, folds, repeats), `TrainingConfig` (model, tuned settings or not,
-threshold, output path), `EvaluationConfig` (saved model, bootstrap resamples,
+threshold, output path; the threshold defaults to the tuned model's own),
+`EvaluationConfig` (saved model, bootstrap resamples,
 whether to add the cross-validation reference) and `InferenceConfig` (saved
 model). Their
 defaults are the values the commands used before, so an empty file changes nothing.
@@ -655,7 +685,8 @@ Every model is a subclass of `Model` (`models/base.py`) registered with
 `@register`. A subclass sets `name` and `role` (`"baseline"` or `"candidate"`) and
 returns its bare estimator from `make_estimator()`; `build(feature_set)` puts it
 behind the shared preprocessing. Models that are tuned also set `search_space`
-(keys like `model__max_depth`) and `tuned_settings` (bare names like `max_depth`).
+(keys like `model__max_depth`), `tuned_settings` (bare names like `max_depth`) and
+`threshold` (the best-F1 threshold of the tuned model, from `mf-thresholds`).
 Registration order is the order of every table and comparison.
 
 ```python
