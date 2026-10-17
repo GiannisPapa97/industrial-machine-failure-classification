@@ -301,11 +301,101 @@ How to read it:
   F1 still use the default 0.5 threshold; choosing the threshold is a separate
   step.
 
+## Threshold tuning
+
+A model gives each machine a failure probability, and a machine is flagged when
+its probability is at least the **threshold**. A low threshold catches more
+failures (high recall) but raises more false alarms (low precision); a high one
+does the opposite. The default of 0.5 is arbitrary, so this step shows the
+trade-off for the four tuned models and what each recall target costs.
+
+```bash
+uv run python -m machine_failure.thresholds --plot pr_curves.png
+```
+
+It uses the training set only; the test set is not touched. Options: `--targets`
+(recall targets to compare, default `0.80 0.85 0.90`) and `--plot FILE` (save the
+precision-recall curves as a PNG). It takes about a minute.
+
+How it works:
+
+- `tuned_models.py` fixes the four winning configurations from the tuning step
+  (`build_tuned_models`).
+- `predictions.py` gives every training row a failure probability from a model
+  that never saw it (`out_of_fold_predictions`): stratified 5-fold, the same
+  folds as the cross-validation elsewhere. These probabilities behave like
+  predictions on new data, so a threshold chosen on them is not tuned on the
+  data the model was trained on.
+- `thresholds.py` computes the counts (TP, FP, FN, TN), precision, recall and F1
+  at every threshold, and finds the highest threshold that reaches a recall
+  target, which is the one with the fewest false alarms.
+
+Results (out-of-fold on the 8,000 training rows, 271 failures). For each recall
+target, the highest threshold that reaches it:
+
+| Recall target | Model                  | Threshold | Correct alerts | False alarms | Missed | Precision |    F1 |
+| ------------- | ---------------------- | --------: | -------------: | -----------: | -----: | --------: | ----: |
+| 80%           | random_forest          |     0.657 |            217 |            1 |     54 |     0.995 | 0.888 |
+|               | hist_gradient_boosting |     0.923 |            217 |            6 |     54 |     0.973 | 0.879 |
+|               | xgboost                |     0.495 |            217 |           32 |     54 |     0.871 | 0.835 |
+|               | extra_trees            |     0.328 |            217 |           39 |     54 |     0.848 | 0.824 |
+| 85%           | random_forest          |     0.147 |            231 |           55 |     40 |     0.808 | 0.829 |
+|               | xgboost                |     0.199 |            231 |           80 |     40 |     0.743 | 0.794 |
+|               | hist_gradient_boosting |     0.100 |            231 |          112 |     40 |     0.673 | 0.752 |
+|               | extra_trees            |     0.148 |            231 |          173 |     40 |     0.572 | 0.684 |
+| 90%           | random_forest          |     0.060 |            244 |          216 |     27 |     0.530 | 0.668 |
+|               | xgboost                |     0.027 |            244 |          320 |     27 |     0.433 | 0.584 |
+|               | hist_gradient_boosting |     0.008 |            244 |          331 |     27 |     0.424 | 0.577 |
+|               | extra_trees            |     0.068 |            244 |          433 |     27 |     0.360 | 0.515 |
+
+At the threshold with the best F1:
+
+| Model                  | Threshold | Recall | Precision |    F1 | False alarms |
+| ---------------------- | --------: | -----: | --------: | ----: | -----------: |
+| random_forest          |     0.475 |  0.827 |     0.987 | 0.900 |            3 |
+| hist_gradient_boosting |     0.864 |  0.815 |     0.969 | 0.886 |            7 |
+| extra_trees            |     0.416 |  0.764 |     0.945 | 0.845 |           12 |
+| xgboost                |     0.654 |  0.790 |     0.907 | 0.844 |           22 |
+
+How to read it:
+
+- Random forest is the best model at every recall target. It was only tied with
+  gradient boosting on PR-AUC, but at a fixed recall it has the fewest false
+  alarms, and the gap widens as the target rises.
+- There is a knee near 83% recall. Up to there, random forest finds failures with
+  almost no false alarms (3 false alarms among more than 7,700 normal machines at
+  the best-F1 threshold). Beyond it, each extra point of recall is expensive: 85%
+  costs about 55 false alarms (81% of alerts real), and 90% costs 216 (about one
+  alert in two is false).
+- This fits the data: about 13 to 15% of the failures get a probability below 0.1
+  from every model. They match the failures the data generation makes random
+  (tool wear failures within 200-240 minutes, random failures and failures with no
+  recorded cause), so they cannot be caught without flagging many normal machines.
+- Thresholds are not comparable across models. Class-weighted models such as
+  gradient boosting give failures extra weight when they train, which inflates
+  their probabilities (best threshold 0.86, against 0.48 for random forest).
+  Compare models at the same recall, not at the same threshold.
+- Caveats: the thresholds are chosen on the same out-of-fold predictions they are
+  evaluated on, so they are slightly optimistic, and differences of a few false
+  alarms between models (for example 1 against 6 at 80% recall) are within noise.
+  The larger gaps at 85% and 90% are more convincing.
+
+The choice of model and operating point (which recall to aim for) depends on how
+costly a false alarm is compared with a missed failure, and is made in the final
+evaluation, which scores the chosen model once on the held-out test set. The
+analysis suggests random forest, with a threshold between its best-F1 point
+(0.475, about 83% recall) and the 85% recall point (0.147).
+
 ## Notebooks
 
 Exploration lives in `notebooks/`:
 
 - `01_eda.ipynb`: exploratory data analysis of the dataset.
+- `02_model_comparison.ipynb`: the default models on every metric, default against
+  tuned settings, and for the four tuned models the precision-recall and ROC
+  curves, metrics against the threshold, how well the probabilities separate the
+  classes, confusion matrices at the candidate operating points, and an
+  interactive threshold slider. It takes about two minutes to run.
 
 Open them with `uv run jupyter lab` after downloading the data. Notebooks are
 committed without outputs, so clear all outputs before committing. `ruff`
@@ -342,6 +432,9 @@ src/machine_failure/   package code
   search_spaces.py     hyperparameter search spaces of the tuned models
   tuning.py            randomized search and nested cross-validation
   tune.py              tune the models and compare with the defaults
+  tuned_models.py      the tuned model configurations
+  predictions.py       out-of-fold predicted probabilities
+  thresholds.py        threshold analysis and recall targets
 tests/                 tests
 notebooks/             exploration notebooks
 data/raw/              downloaded dataset (not committed)
