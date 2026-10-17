@@ -1,4 +1,5 @@
 import runpy
+import subprocess
 import sys
 from pathlib import Path
 
@@ -198,6 +199,22 @@ def test_plot_writes_a_png_file(tmp_path: Path) -> None:
     plot_precision_recall(example_predictions(), path, targets=(0.6, 0.9))
 
     assert path.read_bytes().startswith(b"\x89PNG")
+
+
+def test_importing_the_module_does_not_change_the_plotting_backend() -> None:
+    code = (
+        "import matplotlib; "
+        "matplotlib.use('module://matplotlib_inline.backend_inline'); "
+        "before = matplotlib.get_backend(); "
+        "import machine_failure.thresholds; "
+        "assert matplotlib.get_backend() == before, matplotlib.get_backend()"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.fixture

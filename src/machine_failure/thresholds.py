@@ -11,18 +11,14 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-import matplotlib
+import numpy as np
+import pandas as pd
+from matplotlib.figure import Figure
 
-matplotlib.use("Agg")  # draw to files only, no display needed
-
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-
-from machine_failure.baseline import describe_run  # noqa: E402
-from machine_failure.data import load_xy, split_train_test  # noqa: E402
-from machine_failure.predictions import out_of_fold_predictions  # noqa: E402
-from machine_failure.tuned_models import build_tuned_models  # noqa: E402
+from machine_failure.baseline import describe_run
+from machine_failure.data import load_xy, split_train_test
+from machine_failure.predictions import out_of_fold_predictions
+from machine_failure.tuned_models import build_tuned_models
 
 DEFAULT_TARGETS = (0.80, 0.85, 0.90)
 # The first four slots of the categorical palette, in order.
@@ -121,8 +117,13 @@ def plot_precision_recall(
     path: Path,
     targets: Sequence[float] = DEFAULT_TARGETS,
 ) -> None:
-    """Save precision against recall for each model, with the recall targets marked."""
-    fig, ax = plt.subplots(figsize=(7.5, 5), facecolor=SURFACE)
+    """Save precision against recall for each model, with the recall targets marked.
+
+    Draws with matplotlib's ``Figure`` directly, without pyplot, so importing this
+    module never changes the plotting backend of a notebook or a script.
+    """
+    fig = Figure(figsize=(7.5, 5), facecolor=SURFACE)
+    ax = fig.subplots()
     ax.set_facecolor(SURFACE)
     for color, (name, frame) in zip(LINE_COLORS, predictions.items(), strict=False):
         curve = threshold_curve(frame["label"], frame["probability"])
@@ -159,7 +160,6 @@ def plot_precision_recall(
     ax.legend(loc="lower left", frameon=False, labelcolor=INK)
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor=SURFACE)
-    plt.close(fig)
 
 
 def main() -> None:
