@@ -5,11 +5,12 @@ from collections.abc import Callable
 import pandas as pd
 import pytest
 
-from machine_failure import data, models
+from machine_failure import models
 from machine_failure.evaluation import METRICS
 from machine_failure.experiments import comparison
 from machine_failure.experiments.comparison import sort_by_metric
 from machine_failure.models import build_all_models, build_baselines
+from machine_failure.pipelines import ComparisonPipeline, splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -51,11 +52,10 @@ def test_sort_by_metric_keeps_the_order_of_ties() -> None:
 @pytest.fixture
 def fast_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """Use a small synthetic dataset and only the two baselines, for speed."""
-    monkeypatch.setattr(comparison, "load_xy", lambda: make_xy())
-    monkeypatch.setattr(comparison, "build_all_models", build_baselines)
-    # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy())
-    monkeypatch.setattr(models, "build_all_models", build_baselines)
+    monkeypatch.setattr(splits, "load_xy", lambda path: make_xy())
+    monkeypatch.setattr(
+        ComparisonPipeline, "build_models", lambda self: build_baselines()
+    )
 
 
 def test_main_prints_models_sorted_by_pr_auc(
