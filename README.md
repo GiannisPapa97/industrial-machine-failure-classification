@@ -546,6 +546,11 @@ uv run pytest -m "integration and not slow" --no-cov
 Add `--no-cov` when running a subset that does not cover the whole package,
 otherwise the 90% coverage threshold fails.
 
+In CI, the `test` job runs the unit tests with coverage (`-m "not integration"`),
+and a separate `integration` job downloads the dataset (cached between runs) and
+runs the integration tests, which takes several minutes. Together they check that
+a change keeps both the code covered and the recorded results unchanged.
+
 ## Layout
 
 ```

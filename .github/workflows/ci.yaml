@@ -64,7 +64,7 @@ jobs:
         run: uv sync --locked
 
       - name: Pytest
-        run: uv run pytest
+        run: uv run pytest -m "not integration"
 
       - name: Coverage summary
         run: |
@@ -87,3 +87,34 @@ jobs:
         run: >-
           gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/coverage.md"
           --edit-last --create-if-none
+
+  # Runs the real workflows on the real dataset and compares the results with the
+  # recorded numbers, so a refactoring that changes a result is caught. It is a
+  # separate job because it downloads the dataset and takes several minutes.
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Cache the dataset
+        uses: actions/cache@v6.1.0
+        with:
+          path: data/raw/ai4i2020.csv
+          key: dataset-ai4i2020-${{ hashFiles('src/machine_failure/data.py') }}
+
+      # Skips the download when the cache already restored the file.
+      - name: Download the dataset
+        run: uv run python -m machine_failure.data
+
+      - name: Integration tests
+        run: uv run pytest -m integration --no-cov
