@@ -4,6 +4,7 @@ from machine_failure.pipelines.comparison import ComparisonPipeline, ComparisonR
 from machine_failure.pipelines.evaluation import (
     EvaluationPipeline,
     EvaluationResult,
+    SplitMismatchError,
     UnconfirmedTestSetError,
 )
 from machine_failure.pipelines.inference import InferencePipeline
@@ -15,6 +16,7 @@ __all__ = [
     "EvaluationPipeline",
     "EvaluationResult",
     "InferencePipeline",
+    "SplitMismatchError",
     "TrainingPipeline",
     "TrainingResult",
     "UnconfirmedTestSetError",
