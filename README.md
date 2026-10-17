@@ -594,6 +594,7 @@ unchanged.
 
 ```
 src/machine_failure/
+  cli/           shared by the commands: short error messages and logging
   data/          download, schema and validation, loading, train/test split
   features/      derived features (FeatureEngineer), encoding and scaling
   evaluation/    cross-validation, comparison, out-of-fold predictions,
@@ -614,7 +615,7 @@ notebooks/       exploration notebooks
 data/raw/        downloaded dataset (not committed)
 ```
 
-Dependencies only point downwards: `data` is used by `features`, which is used by
+Dependencies only point downwards: `cli` is used by every package, `data` by `features`, which is used by
 `evaluation`, then `models`, then `config` (which checks model names against the
 model registry), then `pipelines`, then `experiments`. A test (`tests/test_layering.py`) fails if a
 package imports from one above it. Each package re-exports its
@@ -690,3 +691,17 @@ Commands (installed with the project, run them with `uv run`):
 
 Each also runs as a module, for example
 `uv run python -m machine_failure.experiments.comparison`.
+
+**Output, progress and errors.** Results (tables, scores, predictions) go to stdout.
+Progress messages, such as `cross-validating random_forest`, go to stderr through
+Python's standard `logging`. Every command accepts `-v`/`--verbose` (also show
+diagnostics, with time and source) and `-q`/`--quiet` (only warnings and
+errors). Using the library from Python or a notebook stays quiet unless you
+configure logging (`machine_failure.cli.configure_logging()`).
+
+Mistakes you can fix yourself (a missing file, an unknown model, a bad config, a
+CSV without the feature columns, an output file that already exists) end the
+command with a one-line `error: ...` message and exit status 1. Anything else
+is a bug and shows the full traceback. In code, these errors derive from
+`machine_failure.cli.UserError` (`ConfigError`, `DataValidationError`) or are
+`FileNotFoundError` / `FileExistsError`.
