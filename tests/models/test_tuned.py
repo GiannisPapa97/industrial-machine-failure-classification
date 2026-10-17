@@ -9,6 +9,7 @@ from machine_failure.models import (
     SEARCH_SPACES,
     TUNED_MODELS,
     TUNED_SETTINGS,
+    all_models,
     build_candidates,
     build_tuned_models,
 )
@@ -82,3 +83,17 @@ def test_every_tuned_model_fits_and_predicts_probabilities(
     assert probabilities.shape == (len(X),)
     assert ((probabilities >= 0) & (probabilities <= 1)).all()
     assert probabilities[y == 1].mean() > probabilities[y == 0].mean()
+
+
+def test_search_spaces_and_settings_come_from_the_model_classes() -> None:
+    tuned = {name: model for name, model in all_models().items() if model.is_tuned}
+
+    assert list(tuned) == list(TUNED_MODELS)
+    for name, model in tuned.items():
+        assert SEARCH_SPACES[name] is model.search_space
+        assert TUNED_SETTINGS[name] is model.tuned_settings
+    assert not any(
+        model.search_space or model.tuned_settings
+        for name, model in all_models().items()
+        if name not in tuned
+    )

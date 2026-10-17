@@ -261,7 +261,8 @@ the default-settings comparison above:
   The feature-set comparison also showed that all 9 features are best for the
   tree-based models.
 
-The search spaces are in `models/search_spaces.py`. Each contains the default setting,
+The search spaces are defined on the model classes (`Model.search_space`,
+`models/candidates.py`) and collected in `models/search_spaces.py`. Each contains the default setting,
 so the untuned model is always one of the options, and the class-imbalance
 setting is part of the search (class weights, or `scale_pos_weight` for
 XGBoost).
@@ -330,7 +331,8 @@ precision-recall curves as a PNG). It takes about a minute.
 
 How it works:
 
-- `models/tuned.py` fixes the four winning configurations from the tuning step
+- The four winning configurations from the tuning step are the
+  `Model.tuned_settings` of the model classes, collected in `models/tuned.py`
   (`build_tuned_models`).
 - `evaluation/predictions.py` gives every training row a failure probability from a model
   that never saw it (`out_of_fold_predictions`): stratified 5-fold, the same
@@ -561,7 +563,8 @@ src/machine_failure/
   features/      derived features (FeatureEngineer), encoding and scaling
   evaluation/    cross-validation, comparison, out-of-fold predictions,
                  thresholds, hyperparameter search, feature importance
-  models/        baselines, candidate models, search spaces, tuned
+  models/        the Model base class and registry, the baselines and
+                 candidates as model classes, search spaces, tuned
                  configurations, the final model
   experiments/   the commands that run the workflows
 tests/
@@ -575,6 +578,31 @@ Dependencies only point downwards: `data` is used by `features`, which is used b
 `evaluation`, then `models`, then `experiments`. Each package re-exports its
 public names, so code imports from the package
 (`from machine_failure.models import build_candidates`), not from its files.
+
+### Adding a model
+
+Every model is a subclass of `Model` (`models/base.py`) registered with
+`@register`. A subclass sets `name` and `role` (`"baseline"` or `"candidate"`) and
+returns its bare estimator from `make_estimator()`; `build(feature_set)` puts it
+behind the shared preprocessing. Models that are tuned also set `search_space`
+(keys like `model__max_depth`) and `tuned_settings` (bare names like `max_depth`).
+Registration order is the order of every table and comparison.
+
+```python
+@register
+class MyModel(Model):
+    name = "my_model"
+    role = "candidate"
+
+    def make_estimator(self) -> BaseEstimator:
+        return MyClassifier(random_state=RANDOM_STATE)
+```
+
+`get_model(name)` and `all_models(role=None)` look models up. The functions
+`build_baselines`, `build_candidates`, `build_all_models` and `build_tuned_models`
+return fresh pipelines built from the registry, so a new model shows up in the
+comparison commands once it is defined. Adding one changes the pinned
+comparison results (the integration tests), which need updating on purpose.
 
 Commands (installed with the project, run them with `uv run`):
 

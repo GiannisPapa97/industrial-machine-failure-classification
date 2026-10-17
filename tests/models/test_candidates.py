@@ -17,6 +17,7 @@ from machine_failure.evaluation import cross_validate_model
 from machine_failure.features import FEATURE_SETS, FeatureSet, build_preprocessor
 from machine_failure.models import (
     SCALE_POS_WEIGHT,
+    all_models,
     build_all_models,
     build_candidates,
     with_preprocessing,
@@ -117,3 +118,8 @@ def test_with_preprocessing_accepts_a_feature_set(make_xy: MakeXY) -> None:
 
     columns = pipeline.named_steps["preprocess"].fit_transform(X).columns
     assert list(columns) == ["temp_diff", "power", "strain"]
+
+
+def test_registry_lists_the_candidates_after_the_baselines() -> None:
+    assert list(all_models()) == ["dummy", "logistic_regression", *EXPECTED_MODELS]
+    assert list(all_models("candidate")) == list(EXPECTED_MODELS)
