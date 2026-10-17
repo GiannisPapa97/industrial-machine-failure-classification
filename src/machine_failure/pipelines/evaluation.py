@@ -11,13 +11,13 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.metrics import average_precision_score, roc_auc_score
-from sklearn.pipeline import Pipeline
 
 from machine_failure.config import N_BOOTSTRAP, EvaluationConfig
 from machine_failure.data import RANDOM_STATE
 from machine_failure.evaluation import out_of_fold_predictions
-from machine_failure.models import FinalModel, get_model, load_final_model
+from machine_failure.models import FinalModel, load_final_model
 from machine_failure.pipelines.splits import load_split
 
 logger = logging.getLogger(__name__)
@@ -128,16 +128,17 @@ def evaluate_final(
 
 
 def cross_validated_reference(
-    name: str, threshold: float, X_train: pd.DataFrame, y_train: pd.Series
+    final: FinalModel, X_train: pd.DataFrame, y_train: pd.Series
 ) -> dict[str, float]:
     """The same metrics from out-of-fold predictions on the training set.
 
     This is the estimate the threshold was chosen with, to compare with the test
-    result.
+    result. The folds are fitted on an unfitted copy of the saved model (same
+    estimator, settings and features), so the reference describes that model.
     """
-    frame = out_of_fold_predictions(reference_model(name), X_train, y_train)
+    frame = out_of_fold_predictions(clone(final.model), X_train, y_train)
     return metrics_at_threshold(
-        frame["label"].to_numpy(), frame["probability"].to_numpy(), threshold
+        frame["label"].to_numpy(), frame["probability"].to_numpy(), final.threshold
     )
 
 
@@ -164,12 +165,6 @@ def format_evaluation(
         f"missed failures {scores['fn']:.0f}, correct non-alerts {scores['tn']:,.0f}",
     ]
     return "\n".join(lines)
-
-
-def reference_model(name: str) -> Pipeline:
-    """A new pipeline of the model ``name``: tuned if it has tuned settings."""
-    model = get_model(name)
-    return model.build_tuned() if model.is_tuned else model.build()
 
 
 class UnconfirmedTestSetError(RuntimeError):
@@ -217,7 +212,5 @@ class EvaluationPipeline:
         reference = None
         if self.config.reference:
             logger.info("computing the cross-validation reference")
-            reference = cross_validated_reference(
-                final.name, final.threshold, X_train, y_train
-            )
+            reference = cross_validated_reference(final, X_train, y_train)
         return EvaluationResult(evaluation, reference, self.config)

@@ -9,6 +9,7 @@ from sklearn.pipeline import Pipeline
 
 from machine_failure.config import EvaluationConfig, TrainingConfig
 from machine_failure.data import split_train_test
+from machine_failure.evaluation import out_of_fold_predictions
 from machine_failure.models import FinalModel, load_final_model, with_preprocessing
 from machine_failure.pipelines import (
     EvaluationPipeline,
@@ -24,7 +25,6 @@ from machine_failure.pipelines.evaluation import (
     evaluate_final,
     format_evaluation,
     metrics_at_threshold,
-    reference_model,
 )
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
@@ -120,14 +120,11 @@ def test_the_intervals_are_reproducible_and_depend_on_the_seed(make_xy: MakeXY) 
 
 def test_cross_validated_reference_uses_out_of_fold_predictions(
     make_xy: MakeXY,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        final_evaluation, "reference_model", lambda name: cheap_models()[name]
-    )
     X, y = make_xy(signal=6.0)
+    final = FinalModel("random_forest", cheap_models()["random_forest"], 0.5)
 
-    reference = cross_validated_reference("random_forest", 0.5, X, y)
+    reference = cross_validated_reference(final, X, y)
 
     assert set(METRICS) <= set(reference)
     assert reference["tp"] + reference["fn"] == int(y.sum())
@@ -245,9 +242,26 @@ def test_a_missing_model_points_to_the_command_that_creates_it(
         EvaluationPipeline(config).run(confirm=True)
 
 
-def test_the_reference_model_is_tuned_when_it_can_be() -> None:
-    tuned = reference_model("random_forest").get_params()
-    default = reference_model("knn").get_params()
+def test_the_reference_refits_a_copy_of_the_saved_model(
+    make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # an untuned forest on the raw features: not what the registry would build
+    X, y = make_xy(signal=6.0)
+    config = TrainingConfig(
+        model="random_forest", tuned=False, feature_set="raw", threshold=0.5
+    )
+    final = TrainingPipeline(config).fit(X, y).final
+    fitted: list[Pipeline] = []
 
-    assert tuned["model__max_depth"] == 8
-    assert default["model__n_neighbors"] == 15
+    def record(model: Pipeline, *args: object, **kwargs: object) -> pd.DataFrame:
+        fitted.append(model)
+        return out_of_fold_predictions(model, X, y)
+
+    monkeypatch.setattr(final_evaluation, "out_of_fold_predictions", record)
+
+    cross_validated_reference(final, X, y)
+
+    (used,) = fitted
+    assert used is not final.model  # a copy: the saved model is left untouched
+    assert repr(used) == repr(final.model)  # same estimator, settings and features
+    assert used.get_params()["model__max_depth"] is None  # not the tuned 8
