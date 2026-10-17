@@ -26,8 +26,9 @@ class Model(ABC):
     A subclass names itself, says whether it is a baseline or a candidate, and
     builds its bare estimator. Everything else is shared: ``build`` puts the
     estimator behind the preprocessing pipeline, with optional settings applied.
-    Models that are tuned also carry the space a search explores and the settings
-    it found (both keyed by the bare setting name, without ``model__``).
+    Models that are tuned also carry the space a search explores (keyed by pipeline
+    parameter name, ``model__<setting>``) and the settings it found (keyed by the
+    bare setting name).
     """
 
     name: ClassVar[str]
