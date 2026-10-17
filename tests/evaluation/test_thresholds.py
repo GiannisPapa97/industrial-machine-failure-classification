@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from sklearn.metrics import precision_recall_curve
 
-from machine_failure.thresholds import (
+from machine_failure.evaluation import (
     best_f1_per_model,
     best_f1_threshold,
     compare_at_recall_targets,
@@ -177,7 +177,7 @@ def test_importing_the_module_does_not_change_the_plotting_backend() -> None:
         "import matplotlib; "
         "matplotlib.use('module://matplotlib_inline.backend_inline'); "
         "before = matplotlib.get_backend(); "
-        "import machine_failure.thresholds; "
+        "import machine_failure.evaluation.thresholds; "
         "assert matplotlib.get_backend() == before, matplotlib.get_backend()"
     )
 

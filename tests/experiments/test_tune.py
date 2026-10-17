@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
 from machine_failure import data, models, search_spaces
-from machine_failure.baseline import METRICS
+from machine_failure.evaluation import METRICS
 from machine_failure.experiments import tune
 from machine_failure.experiments.tune import (
     TuningResult,

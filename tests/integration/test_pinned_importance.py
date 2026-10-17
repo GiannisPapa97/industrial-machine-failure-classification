@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from machine_failure.interpretation import permutation_importances
+from machine_failure.evaluation import permutation_importances
 from machine_failure.tuned_models import build_tuned_models
 
 pytestmark = pytest.mark.slow

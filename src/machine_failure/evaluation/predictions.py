@@ -6,7 +6,7 @@ from sklearn.base import BaseEstimator, clone
 from sklearn.model_selection import RepeatedStratifiedKFold
 
 from machine_failure.data import RANDOM_STATE
-from machine_failure.evaluation import N_SPLITS
+from machine_failure.evaluation.cross_validation import N_SPLITS
 
 
 def out_of_fold_predictions(

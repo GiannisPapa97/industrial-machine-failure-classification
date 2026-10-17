@@ -10,9 +10,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score
 from sklearn.utils.validation import check_is_fitted
 
-from machine_failure.evaluation import cross_validate_model
+from machine_failure.evaluation import cross_validate_model, out_of_fold_predictions
 from machine_failure.models import with_preprocessing
-from machine_failure.predictions import out_of_fold_predictions
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

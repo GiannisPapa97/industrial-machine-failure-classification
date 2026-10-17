@@ -7,17 +7,20 @@ from typing import Any
 
 import pandas as pd
 
-from machine_failure.baseline import describe_run, format_comparison
 from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
-from machine_failure.evaluation import N_SPLITS, cross_validate_model, summarize_scores
-from machine_failure.models import build_candidates
-from machine_failure.search_spaces import SEARCH_SPACES, TUNED_MODELS
-from machine_failure.tuning import (
+from machine_failure.evaluation import (
     MAIN_METRIC,
+    N_SPLITS,
     best_settings,
+    cross_validate_model,
+    describe_run,
+    format_comparison,
     nested_cross_validate,
+    summarize_scores,
     tune_model,
 )
+from machine_failure.models import build_candidates
+from machine_failure.search_spaces import SEARCH_SPACES, TUNED_MODELS
 
 
 @dataclass

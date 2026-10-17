@@ -11,7 +11,11 @@ from sklearn.model_selection import (
 from sklearn.pipeline import Pipeline
 
 from machine_failure.data import RANDOM_STATE
-from machine_failure.evaluation import N_SPLITS, SCORING, cross_validate_model
+from machine_failure.evaluation.cross_validation import (
+    N_SPLITS,
+    SCORING,
+    cross_validate_model,
+)
 
 MAIN_METRIC = "pr_auc"
 SETTING_PREFIX = "model__"

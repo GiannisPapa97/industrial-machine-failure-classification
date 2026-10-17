@@ -5,9 +5,8 @@ import sys
 
 import pandas as pd
 
-from machine_failure.baseline import METRICS, compare_models, describe_run
 from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
-from machine_failure.evaluation import N_SPLITS
+from machine_failure.evaluation import METRICS, N_SPLITS, compare_models, describe_run
 from machine_failure.features import FEATURE_SETS, FeatureSet
 from machine_failure.models import build_all_models
 

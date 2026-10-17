@@ -6,7 +6,8 @@ import pandas as pd
 import pytest
 
 from machine_failure import data, models
-from machine_failure.baseline import METRICS, build_baselines
+from machine_failure.baseline import build_baselines
+from machine_failure.evaluation import METRICS
 from machine_failure.experiments import ablation
 from machine_failure.experiments.ablation import (
     compare_feature_sets,

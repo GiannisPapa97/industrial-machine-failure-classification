@@ -10,14 +10,14 @@ import argparse
 import sys
 from pathlib import Path
 
-from machine_failure.baseline import describe_run
 from machine_failure.data import load_xy, split_train_test
-from machine_failure.predictions import out_of_fold_predictions
-from machine_failure.thresholds import (
+from machine_failure.evaluation import (
     DEFAULT_TARGETS,
     best_f1_per_model,
     compare_at_recall_targets,
+    describe_run,
     format_table,
+    out_of_fold_predictions,
     plot_precision_recall,
 )
 from machine_failure.tuned_models import build_tuned_models

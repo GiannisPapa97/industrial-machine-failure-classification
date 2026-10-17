@@ -3,11 +3,11 @@ from collections.abc import Callable
 import pandas as pd
 import pytest
 
+from machine_failure.evaluation import SETTING_PREFIX
 from machine_failure.features import FEATURE_SETS, FeatureSet, build_preprocessor
 from machine_failure.models import build_candidates
 from machine_failure.search_spaces import SEARCH_SPACES, TUNED_MODELS
 from machine_failure.tuned_models import TUNED_SETTINGS, build_tuned_models
-from machine_failure.tuning import SETTING_PREFIX
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

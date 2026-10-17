@@ -8,14 +8,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
 
 from machine_failure.data import RANDOM_STATE
-from machine_failure.evaluation import SCORING, cross_validate_model
-from machine_failure.models import with_preprocessing
-from machine_failure.tuning import (
+from machine_failure.evaluation import (
+    SCORING,
     best_settings,
+    cross_validate_model,
     nested_cross_validate,
     search_results,
     tune_model,
 )
+from machine_failure.models import with_preprocessing
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

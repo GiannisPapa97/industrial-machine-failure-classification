@@ -6,7 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
 from machine_failure.data import FAILURE_MODE_COLUMNS, NUMERIC_FEATURES
-from machine_failure.interpretation import (
+from machine_failure.evaluation import (
     group_medians,
     missed_by_failure_mode,
     permutation_importances,

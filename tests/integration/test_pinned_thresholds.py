@@ -12,11 +12,15 @@ import pandas as pd
 import pytest
 
 from machine_failure.data import FEATURE_COLUMNS, load_raw
+from machine_failure.evaluation import (
+    best_f1_per_model,
+    compare_at_recall_targets,
+    group_medians,
+    missed_by_failure_mode,
+    out_of_fold_predictions,
+)
 from machine_failure.experiments.final_evaluation import metrics_at_threshold
 from machine_failure.final_model import FINAL_THRESHOLD
-from machine_failure.interpretation import group_medians, missed_by_failure_mode
-from machine_failure.predictions import out_of_fold_predictions
-from machine_failure.thresholds import best_f1_per_model, compare_at_recall_targets
 from machine_failure.tuned_models import build_tuned_models
 
 pytestmark = pytest.mark.slow

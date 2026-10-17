@@ -14,13 +14,13 @@ from machine_failure.data import (
     load_raw,
     split_train_test,
 )
-from machine_failure.final_model import FINAL_MODEL, FINAL_THRESHOLD
-from machine_failure.interpretation import (
+from machine_failure.evaluation import (
     group_medians,
     missed_by_failure_mode,
+    out_of_fold_predictions,
     permutation_importances,
 )
-from machine_failure.predictions import out_of_fold_predictions
+from machine_failure.final_model import FINAL_MODEL, FINAL_THRESHOLD
 from machine_failure.tuned_models import build_tuned_models
 
 

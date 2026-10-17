@@ -9,9 +9,9 @@ from typing import Any
 
 from sklearn.pipeline import Pipeline
 
+from machine_failure.evaluation import SETTING_PREFIX
 from machine_failure.features import FeatureSet
 from machine_failure.models import build_candidates
-from machine_failure.tuning import SETTING_PREFIX
 
 TUNED_SETTINGS: dict[str, dict[str, Any]] = {
     "random_forest": {
