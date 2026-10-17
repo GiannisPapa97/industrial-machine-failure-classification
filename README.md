@@ -404,16 +404,22 @@ about 55 false alarms on the training data; change `FINAL_THRESHOLD` in
 
 ```bash
 uv run mf-train                  # train and save
+uv run mf-train --config configs/train_final.toml   # the same, from a config file
 uv run mf-evaluate --confirm     # evaluate once
 uv run mf-interpret              # what it relies on
 ```
 
-- `models/final.py` trains the chosen tuned model (`FINAL_MODEL`, random forest) on
-  the whole training set and saves it with its threshold (`FINAL_THRESHOLD`,
+- `pipelines/training.py` (`TrainingPipeline`) trains the model a `TrainingConfig`
+  describes (by default the chosen tuned model, `FINAL_MODEL`, random forest) on
+  the whole training set: load, split, fit on the training rows only. `mf-train`
+  runs it and saves the model with its threshold (`FINAL_THRESHOLD`,
   0.475) to `models/final_model.joblib`. The `models/` folder is not committed,
   and an existing file is only replaced with `--overwrite`. The threshold was
   chosen on out-of-fold predictions of models trained on 80% of the training
   rows, so it is an approximation for the model refit on all of them.
+  `--config FILE.toml` reads the settings from a file (see `configs/`), and
+  `--model`, `--threshold` and `--output` override it. Use it in Python with
+  `TrainingPipeline(config).run()`, then `.save(result)`.
 - `experiments/final_evaluation.py` scores the saved model on the test set. The test set is
   meant to be used once, on the final model, so the command refuses to run
   without `--confirm`. It reports every metric with a 95% bootstrap interval
@@ -567,18 +573,19 @@ src/machine_failure/
                  candidates as model classes, search spaces, tuned
                  configurations, the final model
   config/        typed, validated settings for the workflows, read from TOML
+  pipelines/     the workflows as reusable pipelines (training so far)
   experiments/   the commands that run the workflows
 configs/         example config files
 tests/
-  data/ features/ evaluation/ models/ config/ experiments/   unit tests, one folder per package
-  integration/                                               tests on the real dataset
+  data/ features/ evaluation/ models/ config/ pipelines/ experiments/   unit tests, one folder per package
+  integration/                                                          tests on the real dataset
 notebooks/       exploration notebooks
 data/raw/        downloaded dataset (not committed)
 ```
 
 Dependencies only point downwards: `data` is used by `features`, which is used by
 `evaluation`, then `models`, then `config` (which checks model names against the
-model registry), then `experiments`. A test (`tests/test_layering.py`) fails if a
+model registry), then `pipelines`, then `experiments`. A test (`tests/test_layering.py`) fails if a
 package imports from one above it. Each package re-exports its
 public names, so code imports from the package
 (`from machine_failure.models import build_candidates`), not from its files.
@@ -606,7 +613,7 @@ from machine_failure.config import ComparisonConfig, load_config
 config = load_config(Path("configs/compare_trees.toml"), ComparisonConfig)
 ```
 
-The commands do not read these files yet; the pipeline PRs that follow do.
+`mf-train` reads them with `--config`; the other pipelines will follow.
 
 ### Adding a model
 

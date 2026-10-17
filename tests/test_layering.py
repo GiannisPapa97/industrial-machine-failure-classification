@@ -9,7 +9,15 @@ import machine_failure
 
 ROOT = Path(machine_failure.__file__).parent
 # From the bottom of the stack to the top.
-LAYERS = ["data", "features", "evaluation", "models", "config", "experiments"]
+LAYERS = [
+    "data",
+    "features",
+    "evaluation",
+    "models",
+    "config",
+    "pipelines",
+    "experiments",
+]
 
 
 def imported_packages(path: Path) -> set[str]:

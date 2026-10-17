@@ -1,35 +1,34 @@
 """The final model: the chosen tuned model, trained on the whole training set."""
 
 import argparse
+import dataclasses
 from pathlib import Path
 
-from machine_failure.data import load_xy, split_train_test
-from machine_failure.models import (
-    FINAL_MODEL,
-    FINAL_THRESHOLD,
-    MODEL_PATH,
-    save_final_model,
-    train_final_model,
-)
+from machine_failure.config import TrainingConfig, load_config
+from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
+from machine_failure.pipelines import TrainingPipeline
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--config",
+        type=Path,
+        help="TOML file with the training settings (see configs/train_final.toml); "
+        "the options below override it",
+    )
+    parser.add_argument(
         "--model",
-        default=FINAL_MODEL,
         help=f"tuned model to train (default: {FINAL_MODEL})",
     )
     parser.add_argument(
         "--threshold",
         type=float,
-        default=FINAL_THRESHOLD,
         help=f"decision threshold (default: {FINAL_THRESHOLD})",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=MODEL_PATH,
         help=f"where to save the model (default: {MODEL_PATH})",
     )
     parser.add_argument(
@@ -39,14 +38,21 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    X, y = load_xy()
-    X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
-    final = train_final_model(X_train, y_train, args.model, args.threshold)
-    path = save_final_model(final, args.output, overwrite=args.overwrite)
-    print(
-        f"Trained {final.name} on the training set ({len(X_train):,} rows, "
-        f"{int(y_train.sum())} failures); threshold {final.threshold}."
+    config = (
+        load_config(args.config, TrainingConfig) if args.config else TrainingConfig()
     )
+    overrides = {
+        "model": args.model,
+        "threshold": args.threshold,
+        "output_path": args.output,
+    }
+    config = dataclasses.replace(
+        config, **{key: value for key, value in overrides.items() if value is not None}
+    )
+    pipeline = TrainingPipeline(config)
+    result = pipeline.run()  # the test set is not used here
+    path = pipeline.save(result, overwrite=args.overwrite)
+    print(result.describe())
     print(f"Saved to {path}")
 
 
