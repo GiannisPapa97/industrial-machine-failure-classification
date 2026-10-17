@@ -30,3 +30,6 @@ coverage.xml
 
 # Editor settings
 .vscode/
+
+# Saved models (not committed)
+models/
