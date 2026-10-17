@@ -16,6 +16,17 @@ temperature, rotational speed, torque, tool wear, product type).
 - Metrics: PR-AUC, recall, precision, F1 and the confusion matrix. Accuracy is
   misleading because of the class imbalance.
 
+## Result
+
+The final model is a tuned random forest on nine features (the six raw ones plus
+`temp_diff`, `power` and `strain`), flagging a machine when its predicted failure
+probability is at least 0.475. On the held-out test set (2,000 machines, 68
+failures) it catches 55 failures with 2 false alarms (recall 0.81, precision
+0.96, PR-AUC 0.90), in line with the cross-validation estimate. It misses the
+failures that the data generates at random, which no model of these features can
+predict. Details, intervals and limits are in
+[Final evaluation](#final-evaluation).
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.14.
@@ -381,10 +392,108 @@ How to read it:
   The larger gaps at 85% and 90% are more convincing.
 
 The choice of model and operating point (which recall to aim for) depends on how
-costly a false alarm is compared with a missed failure, and is made in the final
-evaluation, which scores the chosen model once on the held-out test set. The
-analysis suggests random forest, with a threshold between its best-F1 point
-(0.475, about 83% recall) and the 85% recall point (0.147).
+costly a false alarm is compared with a missed failure. The final evaluation
+uses random forest at its best-F1 threshold, 0.475 (about 83% recall with almost
+no false alarms). A threshold near 0.147 would reach 85% recall at the price of
+about 55 false alarms on the training data; change `FINAL_THRESHOLD` in
+`final_model.py` if false alarms are cheaper than missed failures for your use.
+
+## Final evaluation
+
+```bash
+uv run python -m machine_failure.final_model                 # train and save
+uv run python -m machine_failure.final_evaluation --confirm  # evaluate once
+uv run python -m machine_failure.interpretation              # what it relies on
+```
+
+- `final_model.py` trains the chosen tuned model (`FINAL_MODEL`, random forest) on
+  the whole training set and saves it with its threshold (`FINAL_THRESHOLD`,
+  0.475) to `models/final_model.joblib`. The `models/` folder is not committed,
+  and an existing file is only replaced with `--overwrite`. The threshold was
+  chosen on out-of-fold predictions of models trained on 80% of the training
+  rows, so it is an approximation for the model refit on all of them.
+- `final_evaluation.py` scores the saved model on the test set. The test set is
+  meant to be used once, on the final model, so the command refuses to run
+  without `--confirm`. It reports every metric with a 95% bootstrap interval
+  (1,000 resamples of the test rows, keeping the number of failures fixed) next
+  to the cross-validation estimate at the same threshold.
+- `interpretation.py` studies the model on the training set only, on held-out
+  folds and out-of-fold predictions, so the test set is not looked at again.
+
+Test result (random forest, threshold 0.475; 2,000 rows, 68 failures):
+
+| Metric    | Test set | 95% interval   | Cross-validation |
+| --------- | -------: | -------------- | ---------------: |
+| PR-AUC    |    0.904 | [0.842, 0.958] |            0.911 |
+| ROC-AUC   |    0.986 | [0.972, 0.997] |            0.976 |
+| Recall    |    0.809 | [0.721, 0.897] |            0.823 |
+| Precision |    0.965 | [0.914, 1.000] |            0.987 |
+| F1        |    0.880 | [0.817, 0.938] |            0.897 |
+| Accuracy  |    0.993 | [0.989, 0.996] |            0.994 |
+
+That is 55 failures caught, 2 false alarms, 13 failures missed and 1,930 normal
+machines correctly left alone. Every cross-validation figure lies inside the
+test interval, so the estimate held up and the threshold chosen on the training
+data carried over to the test set.
+
+What the model relies on (drop in PR-AUC when one input is shuffled, on held-out
+training folds):
+
+| Feature             | Drop in PR-AUC |
+| ------------------- | -------------: |
+| Torque              |          0.803 |
+| Rotational speed    |          0.636 |
+| Tool wear           |          0.429 |
+| Air temperature     |          0.394 |
+| Process temperature |          0.242 |
+| Type                |          0.088 |
+
+Torque and speed dominate, because the power and strain features are built from
+them. The values are not additive: shuffling one input also disturbs the derived
+features that use it, and the two temperatures matter together through
+`temp_diff`.
+
+Which failures it misses (out-of-fold on the training set, 48 of 271 missed):
+
+| Failure kind                                      | Failures | Caught | Missed |
+| ------------------------------------------------- | -------: | -----: | -----: |
+| heat, power and overstrain failures (HDF/PWF/OSF) |      228 |    222 |      6 |
+| involving tool wear (TWF)                         |       36 |      1 |     35 |
+| no flag at all                                    |        7 |      0 |      7 |
+
+The model has learned the deterministic failure modes almost perfectly (97% of
+them caught). It misses almost all tool wear failures, which the data generates
+at random within 200-240 minutes of wear (only about 5% of machines in that range
+fail), so they look like healthy machines: the missed failures have the same
+median torque and speed as normal rows and differ only in a high tool wear
+(median 209 against 106 minutes). Catching them would mean flagging every machine
+in that range. Setting those 43 failures aside leaves 228 of 271 (84%) as the
+most any threshold can catch without a flood of false alarms, close to the
+model's 82%.
+
+Limits:
+
+- The data is synthetic, generated from known rules plus random failures. A high
+  score shows that the model recovers those rules, not that it would predict
+  failures on real machines.
+- With 68 test failures, every score is uncertain: recall could plausibly be
+  anywhere from 72% to 90%.
+- The 13 test failures it misses are mostly the random kind, which no model of
+  these features can predict.
+- The operating point (threshold 0.475) trades missed failures against false
+  alarms and should be set from the real cost of each.
+- The saved model is a pickle: load only files you created, with the same
+  scikit-learn version.
+
+Using the saved model:
+
+```python
+from machine_failure.final_model import load_final_model
+
+final = load_final_model()
+flagged = final.predict(X_new)  # X_new has Type and the five measurements
+probability = final.probability(X_new)
+```
 
 ## Notebooks
 
@@ -435,6 +544,9 @@ src/machine_failure/   package code
   tuned_models.py      the tuned model configurations
   predictions.py       out-of-fold predicted probabilities
   thresholds.py        threshold analysis and recall targets
+  final_model.py       train, save and load the final model
+  final_evaluation.py  one-shot test set evaluation with intervals
+  interpretation.py    feature importance and missed failures
 tests/                 tests
 notebooks/             exploration notebooks
 data/raw/              downloaded dataset (not committed)
