@@ -16,7 +16,7 @@ from machine_failure.data import (
     RAW_FILENAME,
     TEST_SIZE,
 )
-from machine_failure.evaluation import DEFAULT_TARGETS, N_SPLITS
+from machine_failure.evaluation import N_SPLITS
 from machine_failure.features import FEATURE_SETS, FeatureSet
 from machine_failure.models import (
     FINAL_MODEL,
@@ -25,6 +25,8 @@ from machine_failure.models import (
     all_models,
     get_model,
 )
+
+N_BOOTSTRAP = 1000
 
 
 def check_model_name(name: str) -> None:
@@ -118,22 +120,22 @@ class ComparisonConfig:
 
 @dataclass(frozen=True)
 class EvaluationConfig:
-    """How predictions are judged: the alert threshold and the recall targets."""
+    """How the final model is scored once on the held-out test set.
 
-    threshold: float = FINAL_THRESHOLD
-    recall_targets: tuple[float, ...] = tuple(DEFAULT_TARGETS)
+    The model is loaded from ``model_path`` and judged at the threshold saved with
+    it. ``n_bootstrap`` resamples of the test rows give the intervals;
+    ``reference`` adds the cross-validation estimate at the same threshold, to
+    compare with the test result (it takes about a minute).
+    """
+
+    model_path: Path = MODEL_PATH
+    n_bootstrap: int = N_BOOTSTRAP
+    reference: bool = True
     data: DataConfig = field(default_factory=DataConfig)
 
     def __post_init__(self) -> None:
-        if not 0 < self.threshold < 1:
-            raise ConfigError(
-                f"threshold must be between 0 and 1, not {self.threshold}"
-            )
-        if not self.recall_targets:
-            raise ConfigError("recall_targets must have at least one target")
-        for target in self.recall_targets:
-            if not 0 < target <= 1:
-                raise ConfigError(f"recall targets must be in (0, 1], not {target}")
+        if self.n_bootstrap < 1:
+            raise ConfigError(f"n_bootstrap must be at least 1, not {self.n_bootstrap}")
 
 
 @dataclass(frozen=True)

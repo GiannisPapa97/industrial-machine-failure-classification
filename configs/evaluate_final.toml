@@ -1,3 +1,5 @@
-# How predictions are judged: the alert threshold and the recall targets.
-threshold = 0.475
-recall_targets = [0.80, 0.85, 0.90]
+# Score the saved final model once on the held-out test set.
+# Same as `uv run mf-evaluate --confirm`; the test set is meant to be used once.
+model_path = "models/final_model.joblib"
+n_bootstrap = 1000
+reference = true
