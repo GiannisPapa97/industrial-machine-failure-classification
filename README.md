@@ -41,7 +41,7 @@ The dataset is not committed. Download it from the UCI repository into
 `data/raw/ai4i2020.csv`:
 
 ```bash
-uv run mf-download
+uv run mf download
 ```
 
 An existing file is never replaced unless you pass `--overwrite`. Use `--dest`
@@ -118,7 +118,7 @@ print(summarize_scores(scores))  # mean and std of each metric
 ## Baselines
 
 ```bash
-uv run mf-baseline
+uv run mf compare --models dummy logistic_regression
 ```
 
 Cross-validates a dummy classifier (always predicts "no failure") and a
@@ -141,7 +141,7 @@ PR-AUC of about 0.46 is the bar later models need to beat.
 ## Model comparison
 
 ```bash
-uv run mf-compare
+uv run mf compare
 ```
 
 Cross-validates the two baselines and eight candidate models on the same
@@ -193,10 +193,10 @@ How to read it:
 ## Feature set comparison
 
 ```bash
-uv run mf-ablation
+uv run mf compare --feature-sets raw computed all
 ```
 
-(`--models a b c` limits it to some models.)
+(`--models a b c` limits it to some models; `--metric` chooses the metric shown.)
 
 Cross-validates all 10 models on each of three feature sets, on the same
 training folds, and prints one table with the models as rows and the feature
@@ -242,7 +242,7 @@ How to read it:
 ## Hyperparameter tuning
 
 ```bash
-uv run mf-tune --n-jobs 4
+uv run mf tune --n-jobs 4
 ```
 
 Tunes four models with randomized search and compares each with its default
@@ -328,7 +328,7 @@ does the opposite. The default of 0.5 is arbitrary, so this step shows the
 trade-off for the four tuned models and what each recall target costs.
 
 ```bash
-uv run mf-thresholds --plot pr_curves.png
+uv run mf thresholds --plot pr_curves.png
 ```
 
 It uses the training set only; the test set is not touched. Options: `--targets`
@@ -404,7 +404,7 @@ costly a false alarm is compared with a missed failure. The final evaluation
 uses random forest at its best-F1 threshold, 0.475 (about 83% recall with almost
 no false alarms). A threshold near 0.147 would reach 85% recall at the price of
 about 55 false alarms on the training data; set `threshold` in a training config
-(or `mf-train --threshold`) if false alarms are cheaper than missed failures for
+(or `mf train --threshold`) if false alarms are cheaper than missed failures for
 your use.
 
 Each tuned model keeps its best-F1 threshold from this table as `Model.threshold`
@@ -420,16 +420,16 @@ used: re-choosing it now would mean evaluating on the test set a second time.
 ## Final evaluation
 
 ```bash
-uv run mf-train                  # train and save
-uv run mf-train --config configs/train_final.toml   # the same, from a config file
-uv run mf-evaluate --confirm     # evaluate once
-uv run mf-predict rows.csv       # score new rows with the saved model
-uv run mf-interpret              # what it relies on
+uv run mf train                  # train and save
+uv run mf train --config configs/train_final.toml   # the same, from a config file
+uv run mf evaluate --confirm     # evaluate once
+uv run mf predict rows.csv       # score new rows with the saved model
+uv run mf interpret              # what it relies on
 ```
 
 - `pipelines/training.py` (`TrainingPipeline`) trains the model a `TrainingConfig`
   describes (by default the chosen tuned model, `FINAL_MODEL`, random forest) on
-  the whole training set: load, split, fit on the training rows only. `mf-train`
+  the whole training set: load, split, fit on the training rows only. `mf train`
   runs it and saves the model with its threshold (the model's own, 0.475 for
   random forest, unless one is set) to `models/final_model.joblib`. The `models/` folder is not committed,
   and an existing file is only replaced with `--overwrite`. The threshold was
@@ -445,7 +445,7 @@ uv run mf-interpret              # what it relies on
   held-out rows. Loading warns when the model was saved with another
   scikit-learn version, and a file that is not a saved model is reported in one
   line. A model saved before this metadata existed still loads, with a warning;
-  retrain it with `uv run mf-train --overwrite` (training is deterministic, so
+  retrain it with `uv run mf train --overwrite` (training is deterministic, so
   the model is the same) to record it.
 - The train/test split is fixed for the project (stratified 80/20, seed 42) and is
   not a setting: the model, its settings, the features and the threshold were
@@ -453,7 +453,7 @@ uv run mf-interpret              # what it relies on
   shaped those choices into the test set.
 - `pipelines/evaluation.py` (`EvaluationPipeline`) scores the saved model on the test
   set. The test set is meant to be used once, on the final model, so `run` refuses
-  to start without `confirm=True` and `mf-evaluate` without `--confirm`, in both
+  to start without `confirm=True` and `mf evaluate` without `--confirm`, in both
   cases before any data is read. It reports every metric with a 95% bootstrap
   interval (1,000 resamples of the test rows, keeping the number of failures
   fixed) next to the cross-validation estimate at the same threshold. The model is
@@ -464,7 +464,7 @@ uv run mf-interpret              # what it relies on
   saved model, so it describes that model even when it was trained untuned or on
   other features. `--config FILE.toml` reads the settings
   from a file; `--model-path`, `--n-bootstrap` and `--skip-reference` override it.
-- `pipelines/inference.py` (`InferencePipeline`) and `mf-predict` score new rows with
+- `pipelines/inference.py` (`InferencePipeline`) and `mf predict` score new rows with
   the saved model. The input is a CSV with `Type`, `Air temperature`, `Process
   temperature`, `Rotational speed`, `Torque` and `Tool wear` (other columns are
   ignored). The columns and values are checked first, so a missing column or an
@@ -596,7 +596,7 @@ integration tests in `tests/integration/` run the real workflows on the real
 dataset and compare the results with the numbers recorded in this README, so a
 refactoring that changes a result is caught. They are marked `integration`
 automatically, and are skipped when the dataset has not been downloaded
-(`uv run mf-download`). Tests that take more than about 30
+(`uv run mf download`). Tests that take more than about 30
 seconds are also marked `slow`. One unit test (`tests/test_tracked_files.py`) fails
 if `.gitignore` hides a file under `src`, `tests`, `scripts` or `configs`, which
 git would otherwise skip silently. It is meant for your own machine; in CI, an
@@ -634,17 +634,17 @@ src/machine_failure/
   config/        typed, validated settings for the workflows, read from TOML
   pipelines/     the workflows as reusable pipelines: training, comparison,
                  inference and the final test evaluation
-  experiments/   the commands that run the workflows
+  experiments/   the `mf` command (app.py) and one module per subcommand
 configs/         example config files
 scripts/         tooling that is not part of the package (coverage by package)
 tests/
-  data/ features/ evaluation/ models/ config/ pipelines/ experiments/   unit tests, one folder per package
-  integration/                                                          tests on the real dataset
+  cli/ data/ features/ evaluation/ models/ config/ pipelines/ experiments/   unit tests, one folder per package
+  integration/                                                              tests on the real dataset
 notebooks/       exploration notebooks
 data/raw/        downloaded dataset (not committed)
 ```
 
-Dependencies only point downwards: `cli` is used by every package, `data` by `features`, which is used by
+Dependencies only point downwards: `cli` is at the bottom (any package may use it), then `data`, used by `features`, which is used by
 `evaluation`, then `models`, then `config` (which checks model names against the
 model registry), then `pipelines`, then `experiments`. A test (`tests/test_layering.py`) fails if a
 package imports from one above it. Each package re-exports its
@@ -658,10 +658,14 @@ they are created, so a typo or an out-of-range value fails at once with a clear
 message: `DataConfig` (dataset path; the split is fixed), `ComparisonConfig` (models,
 feature set, folds, repeats), `TrainingConfig` (model, tuned settings or not,
 threshold, output path; the threshold defaults to the tuned model's own),
-`EvaluationConfig` (saved model, bootstrap resamples,
-whether to add the cross-validation reference) and `InferenceConfig` (saved
-model). Their
-defaults are the values the commands used before, so an empty file changes nothing.
+`EvaluationConfig` (saved model, bootstrap resamples, whether to add the
+cross-validation reference), `TuningConfig` (models, random settings per search,
+inner folds, repeats, parallel jobs), `ThresholdsConfig` (recall targets, plot),
+`InterpretationConfig` (model, threshold, importance repeats) and
+`InferenceConfig` (saved model). Their defaults are the values the commands used
+before, so an empty file changes nothing. A model that gives no probabilities
+(the SVM) cannot be trained as the final model, since alerts come from a
+probability threshold.
 
 `load_config(path, ConfigClass)` reads a TOML file. Top-level keys are the config's
 fields and `[data]` holds the nested data settings. Keys left out keep their
@@ -677,7 +681,8 @@ from machine_failure.config import ComparisonConfig, load_config
 config = load_config(Path("configs/compare_trees.toml"), ComparisonConfig)
 ```
 
-`mf-train`, `mf-compare` and `mf-evaluate` read them with `--config`.
+`mf compare`, `mf tune`, `mf thresholds`, `mf train`, `mf evaluate` and
+`mf interpret` read them with `--config`.
 
 ### Adding a model
 
@@ -686,7 +691,7 @@ Every model is a subclass of `Model` (`models/base.py`) registered with
 returns its bare estimator from `make_estimator()`; `build(feature_set)` puts it
 behind the shared preprocessing. Models that are tuned also set `search_space`
 (keys like `model__max_depth`), `tuned_settings` (bare names like `max_depth`) and
-`threshold` (the best-F1 threshold of the tuned model, from `mf-thresholds`).
+`threshold` (the best-F1 threshold of the tuned model, from `mf thresholds`).
 Registration order is the order of every table and comparison.
 
 ```python
@@ -705,23 +710,24 @@ return fresh pipelines built from the registry, so a new model shows up in the
 comparison commands once it is defined. Adding one changes the pinned
 comparison results (the integration tests), which need updating on purpose.
 
-Commands (installed with the project, run them with `uv run`):
+Commands: one entry point, `mf`, installed with the project (run it with
+`uv run mf COMMAND`, or `uv run python -m machine_failure COMMAND`). `mf --help`
+lists the commands and `mf COMMAND --help` shows the options of one.
 
 | Command         | What it does                                        | Section                    |
 | --------------- | --------------------------------------------------- | -------------------------- |
-| `mf-download`   | download the dataset                                | Get the data               |
-| `mf-baseline`   | cross-validate the two baselines                    | Baselines                  |
-| `mf-compare`    | compare all models with default settings            | Model comparison           |
-| `mf-ablation`   | compare all models across the feature sets          | Feature set comparison     |
-| `mf-tune`       | tune four models with nested cross-validation       | Hyperparameter tuning      |
-| `mf-thresholds` | threshold analysis at recall targets                | Threshold tuning           |
-| `mf-train`      | train and save the final model                      | Final evaluation           |
-| `mf-evaluate`   | evaluate the final model once on the test set       | Final evaluation           |
-| `mf-interpret`  | feature importance and the failures it misses       | Final evaluation           |
-| `mf-predict`    | score new rows with the saved model                 | Final evaluation           |
+| `mf download`   | download the dataset                                | Get the data               |
+| `mf compare`    | compare models with cross-validation; `--feature-sets` across feature sets | Baselines, Model comparison, Feature set comparison |
+| `mf tune`       | tune four models with nested cross-validation       | Hyperparameter tuning      |
+| `mf thresholds` | threshold analysis at recall targets                | Threshold tuning           |
+| `mf train`      | train and save the final model                      | Final evaluation           |
+| `mf evaluate`   | evaluate the final model once on the test set       | Final evaluation           |
+| `mf predict`    | score new rows with the saved model                 | Final evaluation           |
+| `mf interpret`  | feature importance and the failures it misses       | Final evaluation           |
 
-Each also runs as a module, for example
-`uv run python -m machine_failure.experiments.comparison`.
+Every command that reads the dataset accepts `--data FILE`, and every workflow
+command except `download` and `predict` accepts `--config FILE.toml` (examples in
+`configs/`); options given on the command line override the file.
 
 **Output, progress and errors.** Results (tables, scores, predictions) go to stdout.
 Progress messages, such as `cross-validating random_forest`, go to stderr through
@@ -731,8 +737,12 @@ errors). Using the library from Python or a notebook stays quiet unless you
 configure logging (`machine_failure.cli.configure_logging()`).
 
 Mistakes you can fix yourself (a missing file, an unknown model, a bad config, a
-CSV without the feature columns, an output file that already exists) end the
-command with a one-line `error: ...` message and exit status 1. Anything else
+setting out of range, a CSV without the feature columns or with infinite values,
+an output file that already exists, using the test set without `--confirm`) end
+the command with a one-line `error: ...` message and exit status 1. Mistakes in
+the command line itself, such as an unknown option or a model that is not one of
+the choices, are reported by argparse with the usage text and exit status 2. Anything else
 is a bug and shows the full traceback. In code, these errors derive from
-`machine_failure.cli.UserError` (`ConfigError`, `DataValidationError`) or are
+`machine_failure.cli.UserError` (`ConfigError`, `DataValidationError`,
+`ModelFileError`, `SplitMismatchError`, `UnconfirmedTestSetError`) or are
 `FileNotFoundError` / `FileExistsError`.

@@ -56,7 +56,6 @@ def tune_models(
 ) -> dict[str, TuningResult]:
     """Tune each model on the 9-feature set; compare with its default settings.
 
-
     For every model this scores the default settings, estimates the tuned
     model with nested cross-validation (on the same outer folds), and runs the
     search once on all of ``X`` and ``y`` to find the setting to use. Pass the

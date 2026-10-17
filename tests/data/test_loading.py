@@ -46,7 +46,7 @@ def test_load_raw_returns_all_columns(tmp_path: Path) -> None:
 
 
 def test_load_raw_missing_file_points_to_download(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="mf-download"):
+    with pytest.raises(FileNotFoundError, match="mf download"):
         data.load_raw(tmp_path / "nope.csv")
 
 

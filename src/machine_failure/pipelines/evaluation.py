@@ -155,7 +155,7 @@ def check_split(final: FinalModel, split: dict[str, str]) -> None:
     if saved is None:
         raise SplitMismatchError(
             "the model has no record of the rows held out when it was trained; "
-            "retrain it with `uv run mf-train --overwrite` before evaluating"
+            "retrain it with `uv run mf train --overwrite` before evaluating"
         )
     if saved["data_sha256"] != split["data_sha256"]:
         raise SplitMismatchError(

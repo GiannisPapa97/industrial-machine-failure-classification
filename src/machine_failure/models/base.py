@@ -30,7 +30,7 @@ class Model(ABC):
     parameter name, ``model__<setting>``) and the settings it found (keyed by the
     bare setting name). They also carry ``threshold``: the decision threshold with
     the best F1 on the tuned model's out-of-fold predictions on the training rows
-    (``uv run mf-thresholds``). Thresholds do not carry over between models.
+    (``uv run mf thresholds``). Thresholds do not carry over between models.
     """
 
     name: ClassVar[str]

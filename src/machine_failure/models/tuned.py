@@ -1,4 +1,4 @@
-"""The tuned model configurations found by ``uv run mf-tune``.
+"""The tuned model configurations found by ``uv run mf tune``.
 
 Each setting is the best configuration of a randomized search over the training
 set (see the README for the nested cross-validation scores). The settings are

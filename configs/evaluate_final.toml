@@ -1,5 +1,5 @@
 # Score the saved final model once on the held-out test set.
-# Same as `uv run mf-evaluate --confirm`; the test set is meant to be used once.
+# Same as `uv run mf evaluate --confirm`; the test set is meant to be used once.
 model_path = "models/final_model.joblib"
 n_bootstrap = 1000
 reference = true

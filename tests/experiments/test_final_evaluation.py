@@ -155,4 +155,4 @@ def test_main_points_to_the_command_that_creates_a_missing_model(
 
     with pytest.raises(SystemExit):
         app.main()
-    assert "mf-train" in capsys.readouterr().err
+    assert "mf train" in capsys.readouterr().err

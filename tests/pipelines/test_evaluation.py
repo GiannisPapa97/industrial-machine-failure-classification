@@ -214,7 +214,7 @@ def test_a_missing_model_points_to_the_command_that_creates_it(
 ) -> None:
     config = EvaluationConfig(model_path=tmp_path / "nope.joblib")
 
-    with pytest.raises(FileNotFoundError, match="mf-train"):
+    with pytest.raises(FileNotFoundError, match="mf train"):
         EvaluationPipeline(config).run(confirm=True)
 
 
@@ -260,7 +260,7 @@ def test_a_model_without_a_split_record_is_refused_before_scoring(
 
     monkeypatch.setattr(final_evaluation, "evaluate_final", must_not_run)
 
-    with pytest.raises(SplitMismatchError, match="mf-train --overwrite"):
+    with pytest.raises(SplitMismatchError, match="mf train --overwrite"):
         EvaluationPipeline(EvaluationConfig(model_path=path)).run(confirm=True)
 
 

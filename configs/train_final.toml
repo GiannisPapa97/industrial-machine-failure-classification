@@ -1,4 +1,4 @@
-# Train the chosen final model on the training rows: the same as `uv run mf-train`.
+# Train the chosen final model on the training rows: the same as `uv run mf train`.
 model = "random_forest"
 feature_set = "all"
 tuned = true
