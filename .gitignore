@@ -31,5 +31,5 @@ coverage.xml
 # Editor settings
 .vscode/
 
-# Saved models (not committed)
-models/
+# Saved models (not committed); only the top-level folder, not src/machine_failure/models
+/models/
