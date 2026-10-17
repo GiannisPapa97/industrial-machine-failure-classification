@@ -53,6 +53,56 @@ def test_main_accepts_a_threshold_and_refuses_to_overwrite(
     final_model.main()
 
 
+def test_main_reads_the_settings_from_a_config_file(
+    small_run: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "final.joblib"
+    config = tmp_path / "train.toml"
+    config.write_text(
+        f'model = "xgboost"\nthreshold = 0.3\noutput_path = "{path}"\n'
+        "[data]\ntest_size = 0.5\n"
+    )
+    monkeypatch.setattr(sys, "argv", ["final_model", "--config", str(config)])
+
+    final_model.main()
+
+    assert "xgboost on the training set (200 rows" in capsys.readouterr().out
+    saved = load_final_model(path)
+    assert (saved.name, saved.threshold) == ("xgboost", 0.3)
+
+
+def test_command_line_options_override_the_config_file(
+    small_run: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    config = tmp_path / "train.toml"
+    config.write_text('model = "xgboost"\nthreshold = 0.3\n')
+    path = tmp_path / "final.joblib"
+    argv = ["final_model", "--config", str(config), "--model", "random_forest"]
+    monkeypatch.setattr(sys, "argv", [*argv, "--output", str(path)])
+
+    final_model.main()
+
+    saved = load_final_model(path)
+    assert (saved.name, saved.threshold) == ("random_forest", 0.3)
+
+
+def test_the_example_config_trains_the_same_model_as_the_defaults(
+    small_run: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    example = Path(__file__).parents[2] / "configs" / "train_final.toml"
+    path = tmp_path / "final.joblib"
+    argv = ["final_model", "--config", str(example), "--output", str(path)]
+    monkeypatch.setattr(sys, "argv", argv)
+
+    final_model.main()
+
+    saved = load_final_model(path)
+    assert (saved.name, saved.threshold) == ("random_forest", FINAL_THRESHOLD)
+
+
 def test_main_rejects_a_model_without_tuned_settings(
     small_run: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
