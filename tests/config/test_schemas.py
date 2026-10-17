@@ -7,10 +7,11 @@ from machine_failure.config import (
     ConfigError,
     DataConfig,
     EvaluationConfig,
+    InferenceConfig,
     TrainingConfig,
 )
 from machine_failure.data import DEFAULT_RAW_DIR, RAW_FILENAME
-from machine_failure.evaluation import DEFAULT_TARGETS, N_SPLITS
+from machine_failure.evaluation import N_SPLITS
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH, all_models
 
 
@@ -108,30 +109,20 @@ def test_comparison_config_rejects_bad_values(
         ComparisonConfig(**kwargs)  # type: ignore[arg-type]
 
 
-def test_evaluation_config_defaults_are_the_final_threshold_and_targets() -> None:
+def test_evaluation_config_defaults_score_the_default_model_like_mf_evaluate() -> None:
     config = EvaluationConfig()
 
-    assert config.threshold == FINAL_THRESHOLD
-    assert config.recall_targets == tuple(DEFAULT_TARGETS)
+    assert config.model_path == MODEL_PATH
+    assert config.n_bootstrap == 1000
+    assert config.reference is True
     assert config.data == DataConfig()
 
 
-@pytest.mark.parametrize(
-    ("kwargs", "message"),
-    [
-        ({"threshold": 0.0}, "threshold"),
-        ({"threshold": 1.0}, "threshold"),
-        ({"recall_targets": ()}, "at least one target"),
-        ({"recall_targets": (0.8, 0.0)}, "recall targets"),
-        ({"recall_targets": (1.2,)}, "recall targets"),
-    ],
-)
-def test_evaluation_config_rejects_bad_values(
-    kwargs: dict[str, object], message: str
-) -> None:
-    with pytest.raises(ConfigError, match=message):
-        EvaluationConfig(**kwargs)  # type: ignore[arg-type]
+@pytest.mark.parametrize("n_bootstrap", [0, -5])
+def test_evaluation_config_rejects_too_few_resamples(n_bootstrap: int) -> None:
+    with pytest.raises(ConfigError, match="n_bootstrap"):
+        EvaluationConfig(n_bootstrap=n_bootstrap)
 
 
-def test_a_recall_target_of_one_is_allowed() -> None:
-    assert EvaluationConfig(recall_targets=(1.0,)).recall_targets == (1.0,)
+def test_inference_config_defaults_to_the_default_model_path() -> None:
+    assert InferenceConfig().model_path == MODEL_PATH

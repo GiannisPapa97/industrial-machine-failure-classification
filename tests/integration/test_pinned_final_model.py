@@ -6,7 +6,6 @@ evaluation command, and never by a test.
 
 from types import SimpleNamespace
 
-import pandas as pd
 import pytest
 from sklearn.ensemble import RandomForestClassifier
 
@@ -14,14 +13,13 @@ from machine_failure.models import (
     FINAL_MODEL,
     FINAL_THRESHOLD,
     FinalModel,
-    train_final_model,
 )
 from machine_failure.pipelines import TrainingPipeline
 
 
 @pytest.fixture(scope="module")
 def final(real_data: SimpleNamespace) -> FinalModel:
-    return train_final_model(real_data.X_train, real_data.y_train)
+    return TrainingPipeline().fit(real_data.X_train, real_data.y_train).final
 
 
 def test_the_final_model_is_the_tuned_random_forest(final: FinalModel) -> None:
@@ -45,17 +43,4 @@ def test_the_final_model_on_the_training_rows(
     assert probability.sum() == pytest.approx(269.55, abs=0.01)
     assert probability.iloc[:5].tolist() == pytest.approx(
         [0.0011, 0.001, 0.0008, 0.0012, 0.0005], abs=1e-4
-    )
-
-
-def test_the_training_pipeline_trains_the_same_final_model(
-    final: FinalModel, real_data: SimpleNamespace
-) -> None:
-    result = TrainingPipeline().fit(real_data.X_train, real_data.y_train)
-
-    assert (result.n_rows, result.n_failures) == (8000, 271)
-    pd.testing.assert_series_equal(
-        result.final.probability(real_data.X_train),
-        final.probability(real_data.X_train),
-        check_exact=True,
     )

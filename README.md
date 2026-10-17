@@ -146,7 +146,11 @@ uv run mf-compare
 
 Cross-validates the two baselines and eight candidate models on the same
 training folds and prints one table, ordered by mean PR-AUC. It takes about a
-minute. The test set is not used. Use `--repeats N` for steadier estimates.
+minute. The test set is not used. Use `--repeats N` for steadier estimates and
+`--models a b c` to compare only some models. `--config FILE.toml` reads the
+settings from a file (see `configs/`); the options override it. In Python, use
+`ComparisonPipeline(config).run()`, which returns the table and a description of the
+run.
 
 The candidates are random forest, extra trees, histogram gradient boosting,
 XGBoost, KNN, SVM, an MLP and quadratic discriminant analysis, all behind the
@@ -191,6 +195,8 @@ How to read it:
 ```bash
 uv run mf-ablation
 ```
+
+(`--models a b c` limits it to some models.)
 
 Cross-validates all 10 models on each of three feature sets, on the same
 training folds, and prints one table with the models as rows and the feature
@@ -406,6 +412,7 @@ about 55 false alarms on the training data; change `FINAL_THRESHOLD` in
 uv run mf-train                  # train and save
 uv run mf-train --config configs/train_final.toml   # the same, from a config file
 uv run mf-evaluate --confirm     # evaluate once
+uv run mf-predict rows.csv       # score new rows with the saved model
 uv run mf-interpret              # what it relies on
 ```
 
@@ -420,11 +427,22 @@ uv run mf-interpret              # what it relies on
   `--config FILE.toml` reads the settings from a file (see `configs/`), and
   `--model`, `--threshold` and `--output` override it. Use it in Python with
   `TrainingPipeline(config).run()`, then `.save(result)`.
-- `experiments/final_evaluation.py` scores the saved model on the test set. The test set is
-  meant to be used once, on the final model, so the command refuses to run
-  without `--confirm`. It reports every metric with a 95% bootstrap interval
-  (1,000 resamples of the test rows, keeping the number of failures fixed) next
-  to the cross-validation estimate at the same threshold.
+- `pipelines/evaluation.py` (`EvaluationPipeline`) scores the saved model on the test
+  set. The test set is meant to be used once, on the final model, so `run` refuses
+  to start without `confirm=True` and `mf-evaluate` without `--confirm`, in both
+  cases before any data is read. It reports every metric with a 95% bootstrap
+  interval (1,000 resamples of the test rows, keeping the number of failures
+  fixed) next to the cross-validation estimate at the same threshold. The model is
+  judged at the threshold saved with it. `--config FILE.toml` reads the settings
+  from a file; `--model-path`, `--n-bootstrap` and `--skip-reference` override it.
+- `pipelines/inference.py` (`InferencePipeline`) and `mf-predict` score new rows with
+  the saved model. The input is a CSV with `Type`, `Air temperature`, `Process
+  temperature`, `Rotational speed`, `Torque` and `Tool wear` (other columns are
+  ignored). The columns and values are checked first, so a missing column or an
+  unknown machine type fails with a clear message. The output has the failure
+  probability and a 0/1 alert at the saved threshold for every input row; it is
+  printed, or written with `--output` (an existing file is only replaced with
+  `--overwrite`). Saved models are pickles: only use model files you created.
 - `evaluation/interpretation.py` studies the model on the training set only, on held-out
   folds and out-of-fold predictions, so the test set is not looked at again.
 
@@ -573,7 +591,8 @@ src/machine_failure/
                  candidates as model classes, search spaces, tuned
                  configurations, the final model
   config/        typed, validated settings for the workflows, read from TOML
-  pipelines/     the workflows as reusable pipelines (training so far)
+  pipelines/     the workflows as reusable pipelines: training, comparison,
+                 inference and the final test evaluation
   experiments/   the commands that run the workflows
 configs/         example config files
 tests/
@@ -596,7 +615,9 @@ Workflow settings are frozen dataclasses in `machine_failure.config`, checked wh
 they are created, so a typo or an out-of-range value fails at once with a clear
 message: `DataConfig` (dataset path, test size, seed), `ComparisonConfig` (models,
 feature set, folds, repeats), `TrainingConfig` (model, tuned settings or not,
-threshold, output path) and `EvaluationConfig` (threshold, recall targets). Their
+threshold, output path), `EvaluationConfig` (saved model, bootstrap resamples,
+whether to add the cross-validation reference) and `InferenceConfig` (saved
+model). Their
 defaults are the values the commands used before, so an empty file changes nothing.
 
 `load_config(path, ConfigClass)` reads a TOML file. Top-level keys are the config's
@@ -613,7 +634,7 @@ from machine_failure.config import ComparisonConfig, load_config
 config = load_config(Path("configs/compare_trees.toml"), ComparisonConfig)
 ```
 
-`mf-train` reads them with `--config`; the other pipelines will follow.
+`mf-train`, `mf-compare` and `mf-evaluate` read them with `--config`.
 
 ### Adding a model
 
@@ -653,6 +674,7 @@ Commands (installed with the project, run them with `uv run`):
 | `mf-train`      | train and save the final model                      | Final evaluation           |
 | `mf-evaluate`   | evaluate the final model once on the test set       | Final evaluation           |
 | `mf-interpret`  | feature importance and the failures it misses       | Final evaluation           |
+| `mf-predict`    | score new rows with the saved model                 | Final evaluation           |
 
 Each also runs as a module, for example
 `uv run python -m machine_failure.experiments.comparison`.

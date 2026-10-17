@@ -5,10 +5,12 @@ import sys
 
 import pandas as pd
 
-from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
-from machine_failure.evaluation import METRICS, N_SPLITS, compare_models, describe_run
+from machine_failure.config import ComparisonConfig
+from machine_failure.data import RANDOM_STATE
+from machine_failure.evaluation import METRICS, N_SPLITS, describe_run
 from machine_failure.features import FEATURE_SETS, FeatureSet
-from machine_failure.models import build_all_models
+from machine_failure.models import all_models
+from machine_failure.pipelines import ComparisonPipeline
 
 FEATURE_SET_DESCRIPTION = (
     "Feature sets: raw = Type and the five measurements; "
@@ -21,12 +23,13 @@ def compare_feature_sets(
     y: pd.Series,
     *,
     feature_sets: tuple[FeatureSet, ...] = FEATURE_SETS,
+    models: tuple[str, ...] | None = None,
     n_splits: int = N_SPLITS,
     n_repeats: int = 1,
     random_state: int = RANDOM_STATE,
     verbose: bool = False,
 ) -> pd.DataFrame:
-    """Cross-validate every model on each feature set, on the same folds.
+    """Cross-validate the models (all by default) on each feature set.
 
     Returns one row per model and a (feature set, metric, mean/std) column for
     every combination. ``verbose`` reports progress on stderr, since a full run
@@ -36,14 +39,14 @@ def compare_feature_sets(
     for feature_set in feature_sets:
         if verbose:
             print(f"cross-validating on feature set: {feature_set}", file=sys.stderr)
-        tables[feature_set] = compare_models(
-            build_all_models(feature_set),
-            X,
-            y,
+        config = ComparisonConfig(
+            models=models or tuple(all_models()),
+            feature_set=feature_set,
             n_splits=n_splits,
             n_repeats=n_repeats,
             random_state=random_state,
         )
+        tables[feature_set] = ComparisonPipeline(config).compare(X, y).table
     return pd.concat(tables, axis=1)
 
 
@@ -75,6 +78,11 @@ def main() -> None:
         help="metric to show in the table (default: pr_auc)",
     )
     parser.add_argument(
+        "--models",
+        nargs="+",
+        help="compare only these models (default: all of them)",
+    )
+    parser.add_argument(
         "--repeats",
         type=int,
         default=1,
@@ -82,9 +90,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    X, y = load_xy()
-    X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
-    table = compare_feature_sets(X_train, y_train, n_repeats=args.repeats, verbose=True)
+    # the test set is not used here
+    pipeline = ComparisonPipeline(ComparisonConfig(n_repeats=args.repeats))
+    X_train, y_train = pipeline.load_training_data()
+    models = tuple(args.models) if args.models else None
+    table = compare_feature_sets(
+        X_train, y_train, models=models, n_repeats=args.repeats, verbose=True
+    )
 
     print(describe_run(X_train, y_train, args.repeats))
     print(FEATURE_SET_DESCRIPTION)

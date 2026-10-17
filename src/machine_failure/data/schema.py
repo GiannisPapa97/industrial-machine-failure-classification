@@ -62,3 +62,33 @@ def validate_raw(df: pd.DataFrame) -> None:
     non_binary = [c for c in BINARY_COLUMNS if not df[c].isin([0, 1]).all()]
     if non_binary:
         raise DataValidationError(f"columns must contain only 0 or 1: {non_binary}")
+
+
+def validate_features(df: pd.DataFrame) -> None:
+    """Raise DataValidationError if ``df`` cannot be scored by a model.
+
+    Only the feature columns are checked: ``Type`` and the five measurements. Other
+    columns may be present (they are ignored), and no target is needed, so new rows
+    and the raw dataset both pass.
+    """
+    missing = [c for c in FEATURE_COLUMNS if c not in df.columns]
+    if missing:
+        raise DataValidationError(f"missing feature columns: {missing}")
+
+    with_nulls = [c for c in FEATURE_COLUMNS if df[c].isna().any()]
+    if with_nulls:
+        raise DataValidationError(f"feature columns contain null values: {with_nulls}")
+
+    not_numeric = [
+        c
+        for c in NUMERIC_FEATURES
+        if not pdt.is_numeric_dtype(df[c]) or pdt.is_bool_dtype(df[c])
+    ]
+    if not_numeric:
+        raise DataValidationError(f"feature columns must be numeric: {not_numeric}")
+
+    bad_types = set(df[TYPE_COLUMN].unique()) - TYPE_VALUES
+    if bad_types:
+        raise DataValidationError(
+            f"{TYPE_COLUMN!r} has unexpected values: {sorted(bad_types)}"
+        )

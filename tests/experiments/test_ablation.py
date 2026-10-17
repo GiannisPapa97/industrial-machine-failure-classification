@@ -5,16 +5,17 @@ from collections.abc import Callable
 import pandas as pd
 import pytest
 
-from machine_failure import data, models
 from machine_failure.evaluation import METRICS
 from machine_failure.experiments import ablation
 from machine_failure.experiments.ablation import (
     compare_feature_sets,
     format_feature_set_table,
 )
-from machine_failure.models import build_baselines
+from machine_failure.pipelines import splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
+BASELINES = ("dummy", "logistic_regression")
+BASELINE_ARGS = ["--models", *BASELINES]
 
 
 def make_table() -> pd.DataFrame:
@@ -31,12 +32,10 @@ def make_table() -> pd.DataFrame:
 
 def test_compare_feature_sets_has_a_column_per_set_metric_and_statistic(
     make_xy: MakeXY,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(ablation, "build_all_models", build_baselines)
     X, y = make_xy()
 
-    table = compare_feature_sets(X, y)
+    table = compare_feature_sets(X, y, models=BASELINES)
 
     assert list(table.index) == ["dummy", "logistic_regression"]
     expected = [
@@ -53,12 +52,13 @@ def test_compare_feature_sets_has_a_column_per_set_metric_and_statistic(
 
 
 def test_compare_feature_sets_accepts_a_subset_and_reports_progress(
-    make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    make_xy: MakeXY, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(ablation, "build_all_models", build_baselines)
     X, y = make_xy()
 
-    table = compare_feature_sets(X, y, feature_sets=("raw",), verbose=True)
+    table = compare_feature_sets(
+        X, y, feature_sets=("raw",), models=BASELINES, verbose=True
+    )
 
     assert {column[0] for column in table.columns} == {"raw"}
     assert "feature set: raw" in capsys.readouterr().err
@@ -85,12 +85,8 @@ def test_format_can_show_another_metric() -> None:
 
 @pytest.fixture
 def fast_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Use a small synthetic dataset and only the two baselines, for speed."""
-    monkeypatch.setattr(ablation, "load_xy", lambda: make_xy())
-    monkeypatch.setattr(ablation, "build_all_models", build_baselines)
-    # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy())
-    monkeypatch.setattr(models, "build_all_models", build_baselines)
+    """Use a small synthetic dataset instead of the downloaded one."""
+    monkeypatch.setattr(splits, "load_xy", lambda path: make_xy())
 
 
 def test_main_prints_the_table_for_the_training_set(
@@ -98,7 +94,7 @@ def test_main_prints_the_table_for_the_training_set(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["ablation"])
+    monkeypatch.setattr(sys, "argv", ["ablation", *BASELINE_ARGS])
 
     ablation.main()
 
@@ -117,7 +113,9 @@ def test_main_accepts_metric_and_repeats(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(
-        sys, "argv", ["ablation", "--metric", "recall", "--repeats", "2"]
+        sys,
+        "argv",
+        ["ablation", *BASELINE_ARGS, "--metric", "recall", "--repeats", "2"],
     )
 
     ablation.main()
@@ -142,7 +140,7 @@ def test_module_runs_main_when_executed_as_script(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["ablation"])
+    monkeypatch.setattr(sys, "argv", ["ablation", *BASELINE_ARGS])
 
     runpy.run_module("machine_failure.experiments.ablation", run_name="__main__")
 

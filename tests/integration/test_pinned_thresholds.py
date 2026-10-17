@@ -19,8 +19,8 @@ from machine_failure.evaluation import (
     missed_by_failure_mode,
     out_of_fold_predictions,
 )
-from machine_failure.experiments.final_evaluation import metrics_at_threshold
 from machine_failure.models import FINAL_THRESHOLD, build_tuned_models
+from machine_failure.pipelines.evaluation import metrics_at_threshold
 
 pytestmark = pytest.mark.slow
 

@@ -10,6 +10,7 @@ from machine_failure.config import (
     TrainingConfig,
     load_config,
 )
+from machine_failure.config.loading import convert
 
 
 def write(tmp_path: Path, text: str) -> Path:
@@ -59,17 +60,22 @@ def test_paths_bools_and_floats_are_converted(tmp_path: Path) -> None:
     assert config.output_path == Path("m.joblib")
 
 
-def test_an_integer_is_accepted_where_a_float_is_expected(tmp_path: Path) -> None:
-    config = load_config(write(tmp_path, "recall_targets = [1]"), EvaluationConfig)
+def test_an_integer_is_accepted_where_a_float_is_expected() -> None:
+    value = convert(1, float, "x")
 
-    assert config.recall_targets == (1.0,)
-    assert isinstance(config.recall_targets[0], float)
+    assert value == 1.0 and isinstance(value, float)
 
 
-def test_float_lists_are_converted(tmp_path: Path) -> None:
-    config = load_config(write(tmp_path, "recall_targets = [0.7, 1]"), EvaluationConfig)
+def test_float_lists_are_converted() -> None:
+    assert convert([0.7, 1], tuple[float, ...], "x") == (0.7, 1.0)
 
-    assert config.recall_targets == (0.7, 1.0)
+
+def test_evaluation_settings_are_read(tmp_path: Path) -> None:
+    config = load_config(
+        write(tmp_path, "n_bootstrap = 50\nreference = false\n"), EvaluationConfig
+    )
+
+    assert (config.n_bootstrap, config.reference) == (50, False)
 
 
 @pytest.mark.parametrize(

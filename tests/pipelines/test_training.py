@@ -10,9 +10,8 @@ from machine_failure.models import (
     FINAL_THRESHOLD,
     FinalModel,
     load_final_model,
-    train_final_model,
 )
-from machine_failure.pipelines import TrainingPipeline, TrainingResult, training
+from machine_failure.pipelines import TrainingPipeline, TrainingResult, splits
 
 
 def test_describe_says_what_was_trained() -> None:
@@ -31,7 +30,7 @@ MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 @pytest.fixture
 def synthetic_data(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """400 synthetic rows (40 failures) instead of the downloaded dataset."""
-    monkeypatch.setattr(training, "load_xy", lambda path: make_xy(n=400))
+    monkeypatch.setattr(splits, "load_xy", lambda path: make_xy(n=400))
 
 
 @pytest.mark.usefixtures("synthetic_data")
@@ -53,7 +52,7 @@ def test_the_data_config_decides_the_split(
         seen.append(path)
         return make_xy(n=400)
 
-    monkeypatch.setattr(training, "load_xy", load)
+    monkeypatch.setattr(splits, "load_xy", load)
     config = TrainingConfig(data=DataConfig(path=Path("my.csv"), test_size=0.5))
 
     result = TrainingPipeline(config).run()
@@ -119,16 +118,3 @@ def test_save_writes_the_model_and_refuses_to_overwrite(
     with pytest.raises(FileExistsError):
         pipeline.save(result)
     assert pipeline.save(result, overwrite=True) == path
-
-
-def test_the_default_pipeline_matches_train_final_model(make_xy: MakeXY) -> None:
-    X, y = make_xy(n=300)
-
-    from_pipeline = TrainingPipeline().fit(X, y).final
-    from_function = train_final_model(X, y)
-
-    assert from_pipeline.name == from_function.name
-    assert from_pipeline.threshold == from_function.threshold
-    pd.testing.assert_series_equal(
-        from_pipeline.probability(X), from_function.probability(X)
-    )

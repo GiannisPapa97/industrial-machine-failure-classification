@@ -9,7 +9,7 @@ import pytest
 from machine_failure.config import ConfigError
 from machine_failure.experiments import final_model
 from machine_failure.models import FINAL_THRESHOLD, load_final_model
-from machine_failure.pipelines import training
+from machine_failure.pipelines import splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -17,7 +17,7 @@ MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 @pytest.fixture
 def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic dataset instead of the downloaded one."""
-    monkeypatch.setattr(training, "load_xy", lambda path: make_xy(n=400))
+    monkeypatch.setattr(splits, "load_xy", lambda path: make_xy(n=400))
 
 
 def test_main_trains_on_the_training_set_and_saves(

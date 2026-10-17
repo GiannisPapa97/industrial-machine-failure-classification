@@ -21,6 +21,7 @@ from machine_failure.data.schema import (
     TYPE_COLUMN,
     TYPE_VALUES,
     DataValidationError,
+    validate_features,
     validate_raw,
 )
 from machine_failure.data.splitting import RANDOM_STATE, TEST_SIZE, split_train_test
@@ -48,5 +49,6 @@ __all__ = [
     "load_raw",
     "load_xy",
     "split_train_test",
+    "validate_features",
     "validate_raw",
 ]

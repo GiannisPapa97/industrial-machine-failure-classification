@@ -7,8 +7,6 @@ import joblib
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
-from machine_failure.models.tuned import build_tuned_models
-
 # The chosen model and decision threshold. The threshold is the one with the best
 # F1 on the out-of-fold predictions of this model (see the README). The final
 # model is refit on all the training rows, so the same threshold is an
@@ -38,25 +36,6 @@ class FinalModel:
         """1 for rows flagged as failures (probability at least the threshold)."""
         flagged = self.probability(X) >= self.threshold
         return flagged.astype(int).rename("flagged")
-
-
-def train_final_model(
-    X_train: pd.DataFrame,
-    y_train: pd.Series,
-    name: str = FINAL_MODEL,
-    threshold: float = FINAL_THRESHOLD,
-) -> FinalModel:
-    """Fit the tuned model ``name`` on the training set and attach the threshold.
-
-    Pass the training set only; the test set is used once, in the final
-    evaluation, on the model returned here.
-    """
-    tuned = build_tuned_models()
-    if name not in tuned:
-        raise ValueError(f"unknown model {name!r}; choose one of {sorted(tuned)}")
-    if not 0 < threshold < 1:
-        raise ValueError(f"the threshold must be between 0 and 1, not {threshold}")
-    return FinalModel(name, tuned[name].fit(X_train, y_train), threshold)
 
 
 def save_final_model(

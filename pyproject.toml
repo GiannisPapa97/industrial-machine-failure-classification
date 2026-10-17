@@ -22,6 +22,7 @@ mf-thresholds = "machine_failure.experiments.thresholds:main"
 mf-train = "machine_failure.experiments.final_model:main"
 mf-evaluate = "machine_failure.experiments.final_evaluation:main"
 mf-interpret = "machine_failure.experiments.interpretation:main"
+mf-predict = "machine_failure.experiments.predict:main"
 
 [dependency-groups]
 dev = [
