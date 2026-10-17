@@ -3,6 +3,8 @@
 import pandas as pd
 from pandas.api import types as pdt
 
+from machine_failure.cli import UserError
+
 ID_COLUMNS = ["UID", "Product ID"]
 TYPE_COLUMN = "Type"
 NUMERIC_FEATURES = [
@@ -30,7 +32,7 @@ EXPECTED_COLUMNS = [
 ]
 
 
-class DataValidationError(ValueError):
+class DataValidationError(UserError, ValueError):
     """The raw dataset does not have the expected structure or values."""
 
 

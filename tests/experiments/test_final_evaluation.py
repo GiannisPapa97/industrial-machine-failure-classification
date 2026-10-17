@@ -136,7 +136,10 @@ def test_the_example_config_is_the_default_evaluation() -> None:
 
 
 def test_main_points_to_the_command_that_creates_a_missing_model(
-    small_run: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    small_run: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
     argv = [
         "final_evaluation",
@@ -146,8 +149,9 @@ def test_main_points_to_the_command_that_creates_a_missing_model(
     ]
     monkeypatch.setattr(sys, "argv", argv)
 
-    with pytest.raises(FileNotFoundError, match="mf-train"):
+    with pytest.raises(SystemExit):
         final_evaluation.main()
+    assert "mf-train" in capsys.readouterr().err
 
 
 @pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")

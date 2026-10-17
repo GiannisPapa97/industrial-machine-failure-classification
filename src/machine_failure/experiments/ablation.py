@@ -1,16 +1,19 @@
 """Compare all models on the raw, computed and combined feature sets."""
 
 import argparse
-import sys
+import logging
 
 import pandas as pd
 
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import ComparisonConfig
 from machine_failure.data import RANDOM_STATE
 from machine_failure.evaluation import METRICS, N_SPLITS, describe_run
 from machine_failure.features import FEATURE_SETS, FeatureSet
 from machine_failure.models import all_models
 from machine_failure.pipelines import ComparisonPipeline
+
+logger = logging.getLogger(__name__)
 
 FEATURE_SET_DESCRIPTION = (
     "Feature sets: raw = Type and the five measurements; "
@@ -27,18 +30,16 @@ def compare_feature_sets(
     n_splits: int = N_SPLITS,
     n_repeats: int = 1,
     random_state: int = RANDOM_STATE,
-    verbose: bool = False,
 ) -> pd.DataFrame:
     """Cross-validate the models (all by default) on each feature set.
 
+
     Returns one row per model and a (feature set, metric, mean/std) column for
-    every combination. ``verbose`` reports progress on stderr, since a full run
-    takes a few minutes.
+    every combination. Progress is logged, since a full run takes a few minutes.
     """
     tables = {}
     for feature_set in feature_sets:
-        if verbose:
-            print(f"cross-validating on feature set: {feature_set}", file=sys.stderr)
+        logger.info("cross-validating on feature set: %s", feature_set)
         config = ComparisonConfig(
             models=models or tuple(all_models()),
             feature_set=feature_set,
@@ -69,6 +70,7 @@ def format_feature_set_table(table: pd.DataFrame, metric: str = "pr_auc") -> str
     return cells.reindex(order).to_string()
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -88,14 +90,16 @@ def main() -> None:
         default=1,
         help="repeat the cross-validation this many times (default: 1)",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     # the test set is not used here
     pipeline = ComparisonPipeline(ComparisonConfig(n_repeats=args.repeats))
     X_train, y_train = pipeline.load_training_data()
     models = tuple(args.models) if args.models else None
     table = compare_feature_sets(
-        X_train, y_train, models=models, n_repeats=args.repeats, verbose=True
+        X_train, y_train, models=models, n_repeats=args.repeats
     )
 
     print(describe_run(X_train, y_train, args.repeats))

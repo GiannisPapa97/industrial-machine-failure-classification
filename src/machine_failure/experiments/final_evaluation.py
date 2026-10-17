@@ -10,11 +10,13 @@ import dataclasses
 import sys
 from pathlib import Path
 
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_config
 from machine_failure.models import MODEL_PATH
 from machine_failure.pipelines import EvaluationPipeline, UnconfirmedTestSetError
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -44,7 +46,9 @@ def main() -> None:
         action="store_true",
         help="do not compute the cross-validation reference (saves about a minute)",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     config = load_config(args.config, EvaluationConfig) if args.config else None
     config = config or EvaluationConfig()

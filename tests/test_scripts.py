@@ -35,5 +35,15 @@ def test_every_command_module_has_a_script() -> None:
     assert commands <= set(SCRIPTS.values())
 
 
+@pytest.mark.parametrize("name", list(SCRIPTS))
+def test_each_script_reports_errors_a_user_can_fix_briefly(name: str) -> None:
+    module_name, function_name = SCRIPTS[name].split(":")
+
+    function = getattr(importlib.import_module(module_name), function_name)
+
+    # wrapped by machine_failure.cli.command (functools.wraps sets __wrapped__)
+    assert hasattr(function, "__wrapped__")
+
+
 def test_the_download_script_points_at_the_data_package() -> None:
     assert SCRIPTS["mf-download"] == "machine_failure.data.download:main"

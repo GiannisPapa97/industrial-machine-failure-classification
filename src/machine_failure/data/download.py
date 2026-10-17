@@ -5,6 +5,8 @@ from pathlib import Path
 
 from ucimlrepo import fetch_ucirepo
 
+from machine_failure.cli import add_verbosity_options, command, configure_logging
+
 UCI_DATASET_ID = 601
 RAW_FILENAME = "ai4i2020.csv"
 DEFAULT_RAW_DIR = Path("data/raw")
@@ -28,6 +30,7 @@ def download_dataset(
     return path
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -41,7 +44,9 @@ def main() -> None:
         action="store_true",
         help="replace the file if it already exists",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
     print(download_dataset(args.dest, overwrite=args.overwrite))
 
 

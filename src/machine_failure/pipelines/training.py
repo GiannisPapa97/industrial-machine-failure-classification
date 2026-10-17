@@ -1,5 +1,6 @@
 """The training pipeline: load, split, and fit one model on the training rows."""
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,6 +10,8 @@ from sklearn.pipeline import Pipeline
 from machine_failure.config import TrainingConfig
 from machine_failure.models import FinalModel, get_model, save_final_model
 from machine_failure.pipelines.splits import load_split
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -54,6 +57,9 @@ class TrainingPipeline:
 
     def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> TrainingResult:
         """Fit the model on ``X_train`` (training rows only), with the threshold."""
+        logger.info(
+            "fitting %s on %s training rows", self.config.model, f"{len(X_train):,}"
+        )
         fitted = self.build_model().fit(X_train, y_train)
         final = FinalModel(self.config.model, fitted, self.config.threshold)
         return TrainingResult(final, self.config, len(X_train), int(y_train.sum()))

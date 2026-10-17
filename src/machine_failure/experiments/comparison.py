@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import ComparisonConfig, load_config
 from machine_failure.evaluation import format_comparison
 from machine_failure.pipelines import ComparisonPipeline
@@ -17,6 +18,7 @@ def sort_by_metric(table: pd.DataFrame, metric: str = "pr_auc") -> pd.DataFrame:
     return table.reindex(order.index)
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -35,7 +37,9 @@ def main() -> None:
         type=int,
         help="repeat the cross-validation this many times (default: 1)",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     config = load_config(args.config, ComparisonConfig) if args.config else None
     config = config or ComparisonConfig()

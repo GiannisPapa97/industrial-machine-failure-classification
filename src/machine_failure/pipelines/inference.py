@@ -1,5 +1,6 @@
 """The inference pipeline: score new rows with the saved final model."""
 
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -7,6 +8,8 @@ import pandas as pd
 from machine_failure.config import InferenceConfig
 from machine_failure.data import FEATURE_COLUMNS, validate_features
 from machine_failure.models import FinalModel, load_final_model
+
+logger = logging.getLogger(__name__)
 
 
 class InferencePipeline:
@@ -28,6 +31,7 @@ class InferencePipeline:
     def final(self) -> FinalModel:
         """The saved model and its threshold, loaded once."""
         if self._final is None:
+            logger.debug("loading the model from %s", self.config.model_path)
             self._final = load_final_model(self.config.model_path)
         return self._final
 

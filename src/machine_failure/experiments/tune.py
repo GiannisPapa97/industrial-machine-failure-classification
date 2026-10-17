@@ -1,12 +1,13 @@
 """Tune the selected models and compare them with their default settings."""
 
 import argparse
-import sys
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
 
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
 from machine_failure.evaluation import (
     MAIN_METRIC,
@@ -20,6 +21,8 @@ from machine_failure.evaluation import (
     tune_model,
 )
 from machine_failure.models import SEARCH_SPACES, TUNED_MODELS, build_candidates
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -42,28 +45,24 @@ def tune_models(
     n_repeats: int = 1,
     random_state: int = RANDOM_STATE,
     n_jobs: int | None = None,
-    verbose: bool = False,
 ) -> dict[str, TuningResult]:
     """Tune each model on the 9-feature set; compare with its default settings.
+
 
     For every model this scores the default settings, estimates the tuned
     model with nested cross-validation (on the same outer folds), and runs the
     search once on all of ``X`` and ``y`` to find the setting to use. Pass the
-    training set only.
+    training set only. Progress is logged, since a search takes minutes.
     """
-
-    def say(message: str) -> None:
-        if verbose:
-            print(message, file=sys.stderr, flush=True)
 
     results = {}
     for name in names:
         model, space = build_candidates()[name], SEARCH_SPACES[name]
-        say(f"{name}: scoring the default settings")
+        logger.info("%s: scoring the default settings", name)
         default = cross_validate_model(
             model, X, y, n_repeats=n_repeats, random_state=random_state
         )
-        say(f"{name}: nested cross-validation of the tuned model")
+        logger.info("%s: nested cross-validation of the tuned model", name)
         tuned = nested_cross_validate(
             model,
             space,
@@ -75,7 +74,7 @@ def tune_models(
             random_state=random_state,
             n_jobs=n_jobs,
         )
-        say(f"{name}: searching on the whole training set")
+        logger.info("%s: searching on the whole training set", name)
         search = tune_model(
             model,
             space,
@@ -116,6 +115,7 @@ def format_results(results: dict[str, TuningResult]) -> str:
     return "\n".join(lines)
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -149,7 +149,9 @@ def main() -> None:
         default=None,
         help="parallel jobs; -1 uses every core (default: 1)",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     X, y = load_xy()
     X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
@@ -161,7 +163,6 @@ def main() -> None:
         inner_splits=args.inner_splits,
         n_repeats=args.repeats,
         n_jobs=args.n_jobs,
-        verbose=True,
     )
 
     print(describe_run(X_train, y_train, args.repeats))

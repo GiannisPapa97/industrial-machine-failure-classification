@@ -2,11 +2,13 @@
 
 import argparse
 
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.data import load_xy, split_train_test
 from machine_failure.evaluation import compare_models, describe_run, format_comparison
 from machine_failure.models import build_baselines
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -15,7 +17,9 @@ def main() -> None:
         default=1,
         help="repeat the cross-validation this many times (default: 1)",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     X, y = load_xy()
     X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here

@@ -62,15 +62,21 @@ def test_main_writes_the_scores_to_a_file_and_refuses_to_overwrite(
 
 
 def test_main_rejects_rows_without_the_feature_columns(
-    files: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    files: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
     model, _ = files
     bad = tmp_path / "bad.csv"
     bad.write_text("Type\nL\n")
     monkeypatch.setattr(sys, "argv", ["predict", str(bad), "--model-path", str(model)])
 
-    with pytest.raises(ValueError, match="missing feature columns"):
+    with pytest.raises(SystemExit) as exit_info:
         predict.main()
+
+    assert exit_info.value.code == 1
+    assert capsys.readouterr().err.startswith("error: missing feature columns")
 
 
 @pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")

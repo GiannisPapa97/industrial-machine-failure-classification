@@ -1,3 +1,4 @@
+import logging
 import runpy
 import sys
 from collections.abc import Callable
@@ -69,14 +70,15 @@ def test_tune_models_scores_default_and_tuned_on_the_same_folds(
     assert 0.5 < result.search_score <= 1.0
 
 
-def test_tune_models_reports_progress(
-    make_xy: MakeXY, small_run: None, capsys: pytest.CaptureFixture[str]
+def test_tune_models_logs_progress(
+    make_xy: MakeXY, small_run: None, caplog: pytest.LogCaptureFixture
 ) -> None:
     X, y = make_xy(n=400)
 
-    tune_models(X, y, ("random_forest",), n_iter=2, inner_splits=2, verbose=True)
+    with caplog.at_level(logging.INFO, logger="machine_failure"):
+        tune_models(X, y, ("random_forest",), n_iter=2, inner_splits=2)
 
-    err = capsys.readouterr().err
+    err = caplog.text
     assert "random_forest: scoring the default settings" in err
     assert "random_forest: nested cross-validation" in err
     assert "random_forest: searching on the whole training set" in err

@@ -4,11 +4,13 @@ import argparse
 import dataclasses
 from pathlib import Path
 
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import TrainingConfig, load_config
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
 from machine_failure.pipelines import TrainingPipeline
 
 
+@command
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -36,7 +38,9 @@ def main() -> None:
         action="store_true",
         help="replace the file if it already exists",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     config = (
         load_config(args.config, TrainingConfig) if args.config else TrainingConfig()

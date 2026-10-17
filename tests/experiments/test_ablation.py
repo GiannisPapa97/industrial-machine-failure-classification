@@ -1,3 +1,4 @@
+import logging
 import runpy
 import sys
 from collections.abc import Callable
@@ -51,17 +52,16 @@ def test_compare_feature_sets_has_a_column_per_set_metric_and_statistic(
         assert pr_auc["logistic_regression"] > 0.5
 
 
-def test_compare_feature_sets_accepts_a_subset_and_reports_progress(
-    make_xy: MakeXY, capsys: pytest.CaptureFixture[str]
+def test_compare_feature_sets_accepts_a_subset_and_logs_progress(
+    make_xy: MakeXY, caplog: pytest.LogCaptureFixture
 ) -> None:
     X, y = make_xy()
 
-    table = compare_feature_sets(
-        X, y, feature_sets=("raw",), models=BASELINES, verbose=True
-    )
+    with caplog.at_level(logging.INFO, logger="machine_failure"):
+        table = compare_feature_sets(X, y, feature_sets=("raw",), models=BASELINES)
 
     assert {column[0] for column in table.columns} == {"raw"}
-    assert "feature set: raw" in capsys.readouterr().err
+    assert "cross-validating on feature set: raw" in caplog.text
 
 
 def test_format_orders_models_by_their_best_score_and_shows_mean_and_std() -> None:

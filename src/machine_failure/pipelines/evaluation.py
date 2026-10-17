@@ -6,6 +6,7 @@ model or the threshold, which is why ``EvaluationPipeline.run`` refuses to start
 without an explicit confirmation.
 """
 
+import logging
 from dataclasses import dataclass
 
 import numpy as np
@@ -18,6 +19,8 @@ from machine_failure.data import RANDOM_STATE
 from machine_failure.evaluation import out_of_fold_predictions
 from machine_failure.models import FinalModel, get_model, load_final_model
 from machine_failure.pipelines.splits import load_split
+
+logger = logging.getLogger(__name__)
 
 METRICS = ("pr_auc", "roc_auc", "recall", "precision", "f1", "accuracy")
 COUNTS = ("tp", "fp", "fn", "tn")
@@ -213,6 +216,7 @@ class EvaluationPipeline:
         )
         reference = None
         if self.config.reference:
+            logger.info("computing the cross-validation reference")
             reference = cross_validated_reference(
                 final.name, final.threshold, X_train, y_train
             )
