@@ -14,7 +14,6 @@ from machine_failure.data import (
     DEFAULT_RAW_DIR,
     RANDOM_STATE,
     RAW_FILENAME,
-    TEST_SIZE,
 )
 from machine_failure.evaluation import N_SPLITS
 from machine_failure.features import FEATURE_SETS, FeatureSet
@@ -45,17 +44,16 @@ def check_feature_set(feature_set: str) -> None:
 
 @dataclass(frozen=True)
 class DataConfig:
-    """Where the dataset is and how it is split into training and test rows."""
+    """Where the dataset is.
+
+    The split into training and held-out test rows is not a setting: it is fixed
+    for the project (``TEST_SIZE`` and ``RANDOM_STATE`` in ``machine_failure.data``).
+    Every choice so far (model, settings, features, threshold) was made on the
+    same training rows, so a different split would put rows that shaped those
+    choices into the test set.
+    """
 
     path: Path = DEFAULT_RAW_DIR / RAW_FILENAME
-    test_size: float = TEST_SIZE
-    random_state: int = RANDOM_STATE
-
-    def __post_init__(self) -> None:
-        if not 0 < self.test_size < 1:
-            raise ConfigError(
-                f"test_size must be between 0 and 1, not {self.test_size}"
-            )
 
 
 @dataclass(frozen=True)

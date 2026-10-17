@@ -87,9 +87,9 @@ def test_run_compares_on_the_training_rows_only(
     make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(splits, "load_xy", lambda path: make_xy(n=400))
-    config = ComparisonConfig(models=("dummy",), data=DataConfig(test_size=0.25))
+    config = ComparisonConfig(models=("dummy",), data=DataConfig())
 
     result = ComparisonPipeline(config).run()
 
-    assert (result.n_rows, result.n_failures) == (300, 30)  # 75% of the rows
+    assert (result.n_rows, result.n_failures) == (320, 32)  # 80% of the rows
     assert result.config is config

@@ -93,7 +93,7 @@ def test_main_reads_the_settings_from_a_config_file(
     config = tmp_path / "evaluate.toml"
     config.write_text(
         f'model_path = "{saved_model}"\nn_bootstrap = 30\nreference = false\n'
-        "[data]\ntest_size = 0.5\n"
+        '[data]\npath = "other.csv"\n'
     )
     argv = ["final_evaluation", "--confirm", "--config", str(config)]
     monkeypatch.setattr(sys, "argv", argv)
@@ -101,7 +101,7 @@ def test_main_reads_the_settings_from_a_config_file(
     final_evaluation.main()
 
     out = capsys.readouterr().out
-    assert "on the test set (300 rows, 30 failures)" in out  # 50% of 600 rows
+    assert "on the test set (120 rows, 12 failures)" in out  # 20% of 600 rows
     assert "cross-validation" not in out
 
 

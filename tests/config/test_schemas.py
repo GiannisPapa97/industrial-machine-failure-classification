@@ -1,3 +1,4 @@
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -19,14 +20,11 @@ def test_data_config_defaults_are_the_values_used_so_far() -> None:
     config = DataConfig()
 
     assert config.path == DEFAULT_RAW_DIR / RAW_FILENAME
-    assert config.test_size == 0.2
-    assert config.random_state == 42
 
 
-@pytest.mark.parametrize("test_size", [0.0, 1.0, -0.1, 1.5])
-def test_data_config_rejects_a_test_size_outside_zero_and_one(test_size: float) -> None:
-    with pytest.raises(ConfigError, match="test_size"):
-        DataConfig(test_size=test_size)
+def test_the_split_is_not_a_setting() -> None:
+    # every decision was made on the same training rows, so the split is fixed
+    assert {f.name for f in dataclasses.fields(DataConfig)} == {"path"}
 
 
 def test_training_config_defaults_are_the_final_model() -> None:

@@ -34,7 +34,6 @@ n_repeats = 3
 
 [data]
 path = "somewhere/data.csv"
-test_size = 0.25
 """,
     )
 
@@ -44,7 +43,7 @@ test_size = 0.25
     assert config.feature_set == "raw"
     assert config.n_repeats == 3
     assert config.n_splits == ComparisonConfig().n_splits
-    assert config.data == DataConfig(path=Path("somewhere/data.csv"), test_size=0.25)
+    assert config.data == DataConfig(path=Path("somewhere/data.csv"))
 
 
 def test_paths_bools_and_floats_are_converted(tmp_path: Path) -> None:
@@ -88,8 +87,9 @@ def test_evaluation_settings_are_read(tmp_path: Path) -> None:
         ("threshold = true", "threshold must be float"),
         ("feature_set = 1", "feature_set must be str"),
         ("data = 3", "data must be a table"),
-        ("[data]\ntest_size = 'big'", r"data\.test_size must be float"),
-        ("[data]\nrandom_state = true", r"data\.random_state must be int"),
+        ("[data]\npath = 3", r"data\.path must be str"),
+        ("[data]\ntest_size = 0.5", r"unknown key.*data.*test_size"),
+        ("[data]\nrandom_state = 7", r"unknown key.*data.*random_state"),
         ("model = 'nope'", "unknown model"),
     ],
 )

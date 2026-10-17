@@ -53,12 +53,12 @@ def test_the_data_config_decides_the_split(
         return make_xy(n=400)
 
     monkeypatch.setattr(splits, "load_xy", load)
-    config = TrainingConfig(data=DataConfig(path=Path("my.csv"), test_size=0.5))
+    config = TrainingConfig(data=DataConfig(path=Path("my.csv")))
 
     result = TrainingPipeline(config).run()
 
     assert seen == [Path("my.csv")]
-    assert result.n_rows == 200
+    assert result.n_rows == 320  # the fixed split: 80% for training
 
 
 @pytest.mark.usefixtures("synthetic_data")

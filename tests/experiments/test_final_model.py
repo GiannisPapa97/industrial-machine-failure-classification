@@ -66,13 +66,13 @@ def test_main_reads_the_settings_from_a_config_file(
     config = tmp_path / "train.toml"
     config.write_text(
         f'model = "xgboost"\nthreshold = 0.3\noutput_path = "{path}"\n'
-        "[data]\ntest_size = 0.5\n"
+        '[data]\npath = "other.csv"\n'
     )
     monkeypatch.setattr(sys, "argv", ["final_model", "--config", str(config)])
 
     final_model.main()
 
-    assert "xgboost on the training set (200 rows" in capsys.readouterr().out
+    assert "xgboost on the training set (320 rows" in capsys.readouterr().out
     saved = load_final_model(path)
     assert (saved.name, saved.threshold) == ("xgboost", 0.3)
 
