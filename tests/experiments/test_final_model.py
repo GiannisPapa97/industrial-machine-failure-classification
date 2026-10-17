@@ -5,34 +5,19 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models
+from machine_failure.config import ConfigError
 from machine_failure.experiments import final_model
-from machine_failure.models import FINAL_THRESHOLD, load_final_model, with_preprocessing
-from machine_failure.models import final as library
+from machine_failure.models import FINAL_THRESHOLD, load_final_model
+from machine_failure.pipelines import training
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
 
-def cheap_models() -> dict[str, Pipeline]:
-    forest = RandomForestClassifier(n_estimators=10, random_state=0)
-    return {"random_forest": with_preprocessing(forest)}
-
-
 @pytest.fixture
 def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A small synthetic dataset and a quick forest instead of the tuned one."""
-    monkeypatch.setattr(
-        final_model, "load_xy", lambda: make_xy(n=400, index_offset=500)
-    )
-    # train_final_model, which the command calls, lives in the library module
-    monkeypatch.setattr(library, "build_tuned_models", cheap_models)
-    # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400, index_offset=500))
-    monkeypatch.setattr(models, "build_tuned_models", cheap_models)
-    monkeypatch.setattr(models, "build_candidates", cheap_models)
+    """A small synthetic dataset instead of the downloaded one."""
+    monkeypatch.setattr(training, "load_xy", lambda path: make_xy(n=400))
 
 
 def test_main_trains_on_the_training_set_and_saves(
@@ -66,6 +51,17 @@ def test_main_accepts_a_threshold_and_refuses_to_overwrite(
         final_model.main()
     monkeypatch.setattr(sys, "argv", [*argv, "--overwrite"])
     final_model.main()
+
+
+def test_main_rejects_a_model_without_tuned_settings(
+    small_run: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    argv = ["final_model", "--model", "knn", "--output", str(tmp_path / "m.joblib")]
+    monkeypatch.setattr(sys, "argv", argv)
+
+    with pytest.raises(ConfigError, match="knn has no tuned settings"):
+        final_model.main()
+    assert not (tmp_path / "m.joblib").exists()
 
 
 @pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")

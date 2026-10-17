@@ -3,14 +3,9 @@
 import argparse
 from pathlib import Path
 
-from machine_failure.data import load_xy, split_train_test
-from machine_failure.models import (
-    FINAL_MODEL,
-    FINAL_THRESHOLD,
-    MODEL_PATH,
-    save_final_model,
-    train_final_model,
-)
+from machine_failure.config import TrainingConfig
+from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
+from machine_failure.pipelines import TrainingPipeline
 
 
 def main() -> None:
@@ -39,14 +34,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    X, y = load_xy()
-    X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
-    final = train_final_model(X_train, y_train, args.model, args.threshold)
-    path = save_final_model(final, args.output, overwrite=args.overwrite)
-    print(
-        f"Trained {final.name} on the training set ({len(X_train):,} rows, "
-        f"{int(y_train.sum())} failures); threshold {final.threshold}."
+    config = TrainingConfig(
+        model=args.model, threshold=args.threshold, output_path=args.output
     )
+    pipeline = TrainingPipeline(config)
+    result = pipeline.run()  # the test set is not used here
+    path = pipeline.save(result, overwrite=args.overwrite)
+    print(result.describe())
     print(f"Saved to {path}")
 
 
