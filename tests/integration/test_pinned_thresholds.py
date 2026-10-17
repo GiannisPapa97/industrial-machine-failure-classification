@@ -16,11 +16,11 @@ from machine_failure.evaluation import (
     best_f1_per_model,
     compare_at_recall_targets,
     group_medians,
+    metrics_at_threshold,
     missed_by_failure_mode,
     out_of_fold_predictions,
 )
 from machine_failure.models import FINAL_THRESHOLD, build_tuned_models
-from machine_failure.pipelines.evaluation import metrics_at_threshold
 
 pytestmark = pytest.mark.slow
 

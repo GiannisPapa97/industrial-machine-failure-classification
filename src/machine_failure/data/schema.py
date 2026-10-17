@@ -19,7 +19,7 @@ FEATURE_COLUMNS = [TYPE_COLUMN, *NUMERIC_FEATURES]
 TARGET_COLUMN = "Machine failure"
 FAILURE_MODE_COLUMNS = ["TWF", "HDF", "PWF", "OSF", "RNF"]
 
-TYPE_VALUES = {"L", "M", "H"}
+TYPE_VALUES = ("L", "M", "H")  # low, medium and high quality variants
 INTEGER_COLUMNS = ["UID", "Rotational speed", "Tool wear"]
 FLOAT_COLUMNS = ["Air temperature", "Process temperature", "Torque"]
 STRING_COLUMNS = ["Product ID", TYPE_COLUMN]
@@ -101,7 +101,7 @@ def check_type_values(df: pd.DataFrame) -> None:
     The unexpected values are listed as text, so values of mixed kinds (a number
     among the letters) are reported instead of failing to sort.
     """
-    bad_types = set(df[TYPE_COLUMN].unique()) - TYPE_VALUES
+    bad_types = set(df[TYPE_COLUMN].unique()) - set(TYPE_VALUES)
     if bad_types:
         raise DataValidationError(
             f"{TYPE_COLUMN!r} has unexpected values: {sorted(map(str, bad_types))}"

@@ -12,48 +12,17 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
-from sklearn.metrics import average_precision_score, roc_auc_score
 
 from machine_failure.cli import UserError
 from machine_failure.config import N_BOOTSTRAP, EvaluationConfig
 from machine_failure.data import RANDOM_STATE
-from machine_failure.evaluation import out_of_fold_predictions
+from machine_failure.evaluation import metrics_at_threshold, out_of_fold_predictions
 from machine_failure.models import FinalModel, load_final_model
 from machine_failure.pipelines.splits import load_split, split_fingerprint
 
 logger = logging.getLogger(__name__)
 
 METRICS = ("pr_auc", "roc_auc", "recall", "precision", "f1", "accuracy")
-COUNTS = ("tp", "fp", "fn", "tn")
-
-
-def metrics_at_threshold(
-    labels: np.ndarray, probabilities: np.ndarray, threshold: float
-) -> dict[str, float]:
-    """The metrics and counts of the alerts raised at ``threshold``.
-
-    A row is flagged when its probability is at least the threshold. PR-AUC and
-    ROC-AUC do not depend on the threshold; the rest do. Precision and F1 are 0
-    when nothing is flagged.
-    """
-    flagged = probabilities >= threshold
-    failure = labels == 1
-    tp = int((flagged & failure).sum())
-    fp = int((flagged & ~failure).sum())
-    fn = int((~flagged & failure).sum())
-    tn = int((~flagged & ~failure).sum())
-    return {
-        "pr_auc": float(average_precision_score(labels, probabilities)),
-        "roc_auc": float(roc_auc_score(labels, probabilities)),
-        "recall": tp / (tp + fn),
-        "precision": tp / (tp + fp) if tp + fp else 0.0,
-        "f1": 2 * tp / (2 * tp + fp + fn),
-        "accuracy": (tp + tn) / len(labels),
-        "tp": tp,
-        "fp": fp,
-        "fn": fn,
-        "tn": tn,
-    }
 
 
 def bootstrap_indices(labels: np.ndarray, rng: np.random.Generator) -> np.ndarray:

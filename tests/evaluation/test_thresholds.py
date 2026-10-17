@@ -13,6 +13,7 @@ from machine_failure.evaluation import (
     best_f1_threshold,
     compare_at_recall_targets,
     format_table,
+    metrics_at_threshold,
     plot_precision_recall,
     threshold_curve,
     threshold_for_recall,
@@ -186,3 +187,28 @@ def test_importing_the_module_does_not_change_the_plotting_backend() -> None:
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_metrics_match_a_hand_calculation() -> None:
+    scores = metrics_at_threshold(LABELS.to_numpy(), PROBABILITIES.to_numpy(), 0.65)
+
+    assert (scores["tp"], scores["fp"], scores["fn"], scores["tn"]) == (2, 1, 1, 2)
+    assert scores["precision"] == pytest.approx(2 / 3)
+    assert scores["recall"] == pytest.approx(2 / 3)
+    assert scores["f1"] == pytest.approx(2 / 3)
+    assert scores["accuracy"] == pytest.approx(4 / 6)
+    assert scores["pr_auc"] == pytest.approx((1 + 1 + 3 / 4) / 3)
+    assert scores["roc_auc"] == pytest.approx(8 / 9)
+
+
+def test_a_probability_at_the_threshold_is_flagged() -> None:
+    scores = metrics_at_threshold(LABELS.to_numpy(), PROBABILITIES.to_numpy(), 0.7)
+
+    assert scores["tp"] + scores["fp"] == 3  # 0.9, 0.8 and 0.7
+
+
+def test_nothing_flagged_gives_zero_precision_and_recall() -> None:
+    scores = metrics_at_threshold(LABELS.to_numpy(), PROBABILITIES.to_numpy(), 0.99)
+
+    assert (scores["precision"], scores["recall"], scores["f1"]) == (0, 0, 0)
+    assert scores["roc_auc"] == pytest.approx(8 / 9)  # does not depend on the threshold
