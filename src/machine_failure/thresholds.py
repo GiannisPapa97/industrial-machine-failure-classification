@@ -6,19 +6,12 @@ its probability is at least the threshold. A low threshold catches more failures
 does the opposite. These functions show that trade-off on the training set.
 """
 
-import argparse
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
-
-from machine_failure.baseline import describe_run
-from machine_failure.data import load_xy, split_train_test
-from machine_failure.predictions import out_of_fold_predictions
-from machine_failure.tuned_models import build_tuned_models
 
 DEFAULT_TARGETS = (0.80, 0.85, 0.90)
 # The first four slots of the categorical palette, in order.
@@ -160,45 +153,3 @@ def plot_precision_recall(
     ax.legend(loc="lower left", frameon=False, labelcolor=INK)
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor=SURFACE)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--targets",
-        nargs="+",
-        type=float,
-        default=list(DEFAULT_TARGETS),
-        help="recall targets to compare (default: 0.80 0.85 0.90)",
-    )
-    parser.add_argument(
-        "--plot",
-        type=Path,
-        default=None,
-        help="save the precision-recall plot to this PNG file",
-    )
-    args = parser.parse_args()
-
-    X, y = load_xy()
-    X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
-    predictions = {}
-    for name, model in build_tuned_models().items():
-        print(f"{name}: out-of-fold predictions", file=sys.stderr, flush=True)
-        predictions[name] = out_of_fold_predictions(model, X_train, y_train)
-
-    print(describe_run(X_train, y_train, 1))
-    print(
-        "Tuned models on all 9 features. A row is flagged when its probability "
-        "is at least the threshold."
-    )
-    print("\nAt each recall target: the highest threshold that reaches it")
-    print(format_table(compare_at_recall_targets(predictions, args.targets)))
-    print("\nAt the threshold with the best F1")
-    print(format_table(best_f1_per_model(predictions)))
-    if args.plot is not None:
-        plot_precision_recall(predictions, args.plot, args.targets)
-        print(f"\nPlot saved to {args.plot}")
-
-
-if __name__ == "__main__":
-    main()

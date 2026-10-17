@@ -1,14 +1,12 @@
 """Baseline models and their cross-validated comparison."""
 
-import argparse
-
 import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
-from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
+from machine_failure.data import RANDOM_STATE
 from machine_failure.evaluation import (
     N_SPLITS,
     SCORING,
@@ -100,25 +98,3 @@ def describe_run(X_train: pd.DataFrame, y_train: pd.Series, n_repeats: int) -> s
         f"({len(X_train):,} rows, {int(y_train.sum())} failures), "
         f"{n_repeats} repeat(s). Mean ± std across folds."
     )
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--repeats",
-        type=int,
-        default=1,
-        help="repeat the cross-validation this many times (default: 1)",
-    )
-    args = parser.parse_args()
-
-    X, y = load_xy()
-    X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
-    table = compare_models(build_baselines(), X_train, y_train, n_repeats=args.repeats)
-
-    print(describe_run(X_train, y_train, args.repeats))
-    print(format_comparison(table))
-
-
-if __name__ == "__main__":
-    main()

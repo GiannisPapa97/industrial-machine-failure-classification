@@ -5,9 +5,10 @@ from collections.abc import Callable
 import pandas as pd
 import pytest
 
-from machine_failure import comparison, data, models
+from machine_failure import data, models
 from machine_failure.baseline import METRICS, build_baselines
-from machine_failure.comparison import sort_by_metric
+from machine_failure.experiments import comparison
+from machine_failure.experiments.comparison import sort_by_metric
 from machine_failure.models import build_all_models
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
@@ -93,6 +94,6 @@ def test_module_runs_main_when_executed_as_script(
 ) -> None:
     monkeypatch.setattr(sys, "argv", ["comparison"])
 
-    runpy.run_module("machine_failure.comparison", run_name="__main__")
+    runpy.run_module("machine_failure.experiments.comparison", run_name="__main__")
 
     assert "logistic_regression" in capsys.readouterr().out

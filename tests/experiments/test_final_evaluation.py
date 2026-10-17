@@ -9,9 +9,10 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, final_evaluation, tuned_models
+from machine_failure import data, tuned_models
 from machine_failure.data import split_train_test
-from machine_failure.final_evaluation import (
+from machine_failure.experiments import final_evaluation
+from machine_failure.experiments.final_evaluation import (
     METRICS,
     bootstrap_indices,
     cross_validated_reference,
@@ -246,6 +247,8 @@ def test_module_runs_main_when_executed_as_script(
     argv = ["final_evaluation", "--confirm", "--model-path", str(saved_model)]
     monkeypatch.setattr(sys, "argv", argv + ["--n-bootstrap", "20", "--skip-reference"])
 
-    runpy.run_module("machine_failure.final_evaluation", run_name="__main__")
+    runpy.run_module(
+        "machine_failure.experiments.final_evaluation", run_name="__main__"
+    )
 
     assert "on the test set" in capsys.readouterr().out

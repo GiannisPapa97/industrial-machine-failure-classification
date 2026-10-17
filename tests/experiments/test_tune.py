@@ -8,9 +8,10 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models, search_spaces, tune
+from machine_failure import data, models, search_spaces
 from machine_failure.baseline import METRICS
-from machine_failure.tune import (
+from machine_failure.experiments import tune
+from machine_failure.experiments.tune import (
     TuningResult,
     comparison_table,
     format_results,
@@ -150,6 +151,6 @@ def test_module_runs_main_when_executed_as_script(
     argv = ["tune", "--n-iter", "2", "--inner-splits", "2"]
     monkeypatch.setattr(sys, "argv", argv)
 
-    runpy.run_module("machine_failure.tune", run_name="__main__")
+    runpy.run_module("machine_failure.experiments.tune", run_name="__main__")
 
     assert "random_forest (default)" in capsys.readouterr().out

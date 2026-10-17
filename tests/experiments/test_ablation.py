@@ -5,9 +5,13 @@ from collections.abc import Callable
 import pandas as pd
 import pytest
 
-from machine_failure import ablation, data, models
-from machine_failure.ablation import compare_feature_sets, format_feature_set_table
+from machine_failure import data, models
 from machine_failure.baseline import METRICS, build_baselines
+from machine_failure.experiments import ablation
+from machine_failure.experiments.ablation import (
+    compare_feature_sets,
+    format_feature_set_table,
+)
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -139,6 +143,6 @@ def test_module_runs_main_when_executed_as_script(
 ) -> None:
     monkeypatch.setattr(sys, "argv", ["ablation"])
 
-    runpy.run_module("machine_failure.ablation", run_name="__main__")
+    runpy.run_module("machine_failure.experiments.ablation", run_name="__main__")
 
     assert "logistic_regression" in capsys.readouterr().out
