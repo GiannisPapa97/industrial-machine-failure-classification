@@ -232,7 +232,7 @@ def test_main_points_to_the_command_that_creates_a_missing_model(
     ]
     monkeypatch.setattr(sys, "argv", argv)
 
-    with pytest.raises(FileNotFoundError, match="machine_failure.final_model"):
+    with pytest.raises(FileNotFoundError, match="mf-train"):
         final_evaluation.main()
 
 
