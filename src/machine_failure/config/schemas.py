@@ -134,3 +134,13 @@ class EvaluationConfig:
         for target in self.recall_targets:
             if not 0 < target <= 1:
                 raise ConfigError(f"recall targets must be in (0, 1], not {target}")
+
+
+@dataclass(frozen=True)
+class InferenceConfig:
+    """Which saved model scores new rows.
+
+    Saved models are pickles: only point this at a file you created yourself.
+    """
+
+    model_path: Path = MODEL_PATH

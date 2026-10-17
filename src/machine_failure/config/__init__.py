@@ -6,6 +6,7 @@ from machine_failure.config.schemas import (
     ComparisonConfig,
     DataConfig,
     EvaluationConfig,
+    InferenceConfig,
     TrainingConfig,
 )
 
@@ -14,6 +15,7 @@ __all__ = [
     "ConfigError",
     "DataConfig",
     "EvaluationConfig",
+    "InferenceConfig",
     "TrainingConfig",
     "load_config",
 ]

@@ -7,6 +7,7 @@ from machine_failure.config import (
     ConfigError,
     DataConfig,
     EvaluationConfig,
+    InferenceConfig,
     TrainingConfig,
 )
 from machine_failure.data import DEFAULT_RAW_DIR, RAW_FILENAME
@@ -135,3 +136,7 @@ def test_evaluation_config_rejects_bad_values(
 
 def test_a_recall_target_of_one_is_allowed() -> None:
     assert EvaluationConfig(recall_targets=(1.0,)).recall_targets == (1.0,)
+
+
+def test_inference_config_defaults_to_the_default_model_path() -> None:
+    assert InferenceConfig().model_path == MODEL_PATH
