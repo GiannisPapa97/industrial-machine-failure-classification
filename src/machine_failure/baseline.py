@@ -15,7 +15,7 @@ from machine_failure.evaluation import (
     cross_validate_model,
     summarize_scores,
 )
-from machine_failure.preprocessing import FeatureSet, build_preprocessor
+from machine_failure.features import FeatureSet, build_preprocessor
 
 METRICS = list(SCORING)
 

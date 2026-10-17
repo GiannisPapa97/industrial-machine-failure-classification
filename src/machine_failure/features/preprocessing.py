@@ -7,7 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from machine_failure.data import NUMERIC_FEATURES, TYPE_COLUMN
-from machine_failure.features import DERIVED_FEATURES, FeatureEngineer
+from machine_failure.features.engineer import DERIVED_FEATURES, FeatureEngineer
 
 FeatureSet = Literal["raw", "computed", "all"]
 FEATURE_SETS: tuple[FeatureSet, ...] = ("raw", "computed", "all")

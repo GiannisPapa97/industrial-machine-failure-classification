@@ -14,13 +14,13 @@ from sklearn.svm import SVC
 from xgboost import XGBClassifier
 
 from machine_failure.evaluation import cross_validate_model
+from machine_failure.features import FEATURE_SETS, FeatureSet, build_preprocessor
 from machine_failure.models import (
     SCALE_POS_WEIGHT,
     build_all_models,
     build_candidates,
     with_preprocessing,
 )
-from machine_failure.preprocessing import FEATURE_SETS, FeatureSet, build_preprocessor
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

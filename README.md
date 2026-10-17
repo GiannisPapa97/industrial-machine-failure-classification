@@ -89,7 +89,7 @@ from sklearn.pipeline import Pipeline
 
 from machine_failure.data import load_xy, split_train_test
 from machine_failure.evaluation import cross_validate_model, summarize_scores
-from machine_failure.preprocessing import build_preprocessor
+from machine_failure.features import build_preprocessor
 
 X, y = load_xy()
 X_train, X_test, y_train, y_test = split_train_test(X, y)  # stratified 80/20

@@ -8,8 +8,8 @@ import pandas as pd
 from machine_failure.baseline import METRICS, compare_models, describe_run
 from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
 from machine_failure.evaluation import N_SPLITS
+from machine_failure.features import FEATURE_SETS, FeatureSet
 from machine_failure.models import build_all_models
-from machine_failure.preprocessing import FEATURE_SETS, FeatureSet
 
 FEATURE_SET_DESCRIPTION = (
     "Feature sets: raw = Type and the five measurements; "

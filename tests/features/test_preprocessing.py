@@ -4,8 +4,8 @@ import pytest
 from sklearn.base import clone
 
 from machine_failure.data import NUMERIC_FEATURES
-from machine_failure.features import DERIVED_FEATURES
-from machine_failure.preprocessing import (
+from machine_failure.features import (
+    DERIVED_FEATURES,
     FEATURE_SETS,
     SCALED_FEATURES,
     TYPE_CATEGORIES,
