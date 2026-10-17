@@ -16,6 +16,7 @@ from machine_failure.data import (
     RAW_FILENAME,
     TEST_SIZE,
 )
+from machine_failure.evaluation import DEFAULT_TARGETS, N_SPLITS
 from machine_failure.features import FEATURE_SETS, FeatureSet
 from machine_failure.models import (
     FINAL_MODEL,
@@ -79,3 +80,57 @@ class TrainingConfig:
             raise ConfigError(
                 f"threshold must be between 0 and 1, not {self.threshold}"
             )
+
+
+def all_model_names() -> tuple[str, ...]:
+    """The names of every registered model, in registry order."""
+    return tuple(all_models())
+
+
+@dataclass(frozen=True)
+class ComparisonConfig:
+    """Which models to compare, and how to cross-validate them.
+
+    All registered models are compared by default. ``n_repeats`` repeats the
+    cross-validation with different shuffles for steadier estimates.
+    """
+
+    models: tuple[str, ...] = field(default_factory=all_model_names)
+    feature_set: FeatureSet = "all"
+    n_splits: int = N_SPLITS
+    n_repeats: int = 1
+    random_state: int = RANDOM_STATE
+    data: DataConfig = field(default_factory=DataConfig)
+
+    def __post_init__(self) -> None:
+        if not self.models:
+            raise ConfigError("models must name at least one model")
+        if len(set(self.models)) != len(self.models):
+            raise ConfigError(f"models lists a model twice: {list(self.models)}")
+        for name in self.models:
+            check_model_name(name)
+        check_feature_set(self.feature_set)
+        if self.n_splits < 2:
+            raise ConfigError(f"n_splits must be at least 2, not {self.n_splits}")
+        if self.n_repeats < 1:
+            raise ConfigError(f"n_repeats must be at least 1, not {self.n_repeats}")
+
+
+@dataclass(frozen=True)
+class EvaluationConfig:
+    """How predictions are judged: the alert threshold and the recall targets."""
+
+    threshold: float = FINAL_THRESHOLD
+    recall_targets: tuple[float, ...] = tuple(DEFAULT_TARGETS)
+    data: DataConfig = field(default_factory=DataConfig)
+
+    def __post_init__(self) -> None:
+        if not 0 < self.threshold < 1:
+            raise ConfigError(
+                f"threshold must be between 0 and 1, not {self.threshold}"
+            )
+        if not self.recall_targets:
+            raise ConfigError("recall_targets must have at least one target")
+        for target in self.recall_targets:
+            if not 0 < target <= 1:
+                raise ConfigError(f"recall targets must be in (0, 1], not {target}")

@@ -2,9 +2,16 @@ from pathlib import Path
 
 import pytest
 
-from machine_failure.config import ConfigError, DataConfig, TrainingConfig
+from machine_failure.config import (
+    ComparisonConfig,
+    ConfigError,
+    DataConfig,
+    EvaluationConfig,
+    TrainingConfig,
+)
 from machine_failure.data import DEFAULT_RAW_DIR, RAW_FILENAME
-from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
+from machine_failure.evaluation import DEFAULT_TARGETS, N_SPLITS
+from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH, all_models
 
 
 def test_data_config_defaults_are_the_values_used_so_far() -> None:
@@ -66,3 +73,65 @@ def test_paths_can_be_set() -> None:
     config = TrainingConfig(output_path=Path("out.joblib"))
 
     assert config.output_path == Path("out.joblib")
+
+
+def test_comparison_config_defaults_compare_every_model_like_mf_compare() -> None:
+    config = ComparisonConfig()
+
+    assert config.models == tuple(all_models())
+    assert config.feature_set == "all"
+    assert config.n_splits == N_SPLITS
+    assert config.n_repeats == 1
+    assert config.random_state == 42
+    assert config.data == DataConfig()
+
+
+def test_comparison_config_accepts_a_subset_of_models() -> None:
+    assert ComparisonConfig(models=("dummy", "xgboost")).models == ("dummy", "xgboost")
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"models": ()}, "at least one model"),
+        ({"models": ("dummy", "dummy")}, "twice"),
+        ({"models": ("dummy", "nope")}, "unknown model 'nope'"),
+        ({"feature_set": "everything"}, "unknown feature set"),
+        ({"n_splits": 1}, "n_splits"),
+        ({"n_repeats": 0}, "n_repeats"),
+    ],
+)
+def test_comparison_config_rejects_bad_values(
+    kwargs: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ConfigError, match=message):
+        ComparisonConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_evaluation_config_defaults_are_the_final_threshold_and_targets() -> None:
+    config = EvaluationConfig()
+
+    assert config.threshold == FINAL_THRESHOLD
+    assert config.recall_targets == tuple(DEFAULT_TARGETS)
+    assert config.data == DataConfig()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"threshold": 0.0}, "threshold"),
+        ({"threshold": 1.0}, "threshold"),
+        ({"recall_targets": ()}, "at least one target"),
+        ({"recall_targets": (0.8, 0.0)}, "recall targets"),
+        ({"recall_targets": (1.2,)}, "recall targets"),
+    ],
+)
+def test_evaluation_config_rejects_bad_values(
+    kwargs: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ConfigError, match=message):
+        EvaluationConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_a_recall_target_of_one_is_allowed() -> None:
+    assert EvaluationConfig(recall_targets=(1.0,)).recall_targets == (1.0,)
