@@ -542,15 +542,23 @@ checks and formats the notebooks together with the rest of the code.
 uv run ruff check
 uv run ruff format --check
 uv run mypy
-uv run pytest
+uv run pytest -m "not integration"
+uv run python scripts/coverage_by_package.py
 ```
 
 `pytest` also prints a coverage report (per file and total, with branch
-coverage and the uncovered line numbers). In CI, the `test` job adds the same
-table to the run summary, visible from the pull request's Checks tab, and
-posts it as a single comment on the pull request that is updated on each push.
-The tests fail if total coverage drops below 90% (`fail_under` in
-`pyproject.toml`).
+coverage and the uncovered line numbers). `scripts/coverage_by_package.py` reads
+the coverage data of the last run and prints one row per package of
+`src/machine_failure` plus a total, and exits with an error if any package is
+below the minimum: 90% for each package (`fail_under` in the
+`[tool.package-coverage]` section of `pyproject.toml`; `--fail-under` overrides
+it). Coverage counts statements and branches together, as coverage.py does.
+
+In CI, the `test` job puts that package table, with the per-file table in a
+collapsed section below it, in the run summary (visible from the pull request's
+Checks tab) and posts it as a single comment on the pull request that is updated
+on each push. The report is written before the job fails, so a package below
+the minimum is visible in the comment.
 
 ### Unit and integration tests
 
@@ -560,7 +568,10 @@ dataset and compare the results with the numbers recorded in this README, so a
 refactoring that changes a result is caught. They are marked `integration`
 automatically, and are skipped when the dataset has not been downloaded
 (`uv run mf-download`). Tests that take more than about 30
-seconds are also marked `slow`.
+seconds are also marked `slow`. One unit test (`tests/test_tracked_files.py`) fails
+if `.gitignore` hides a file under `src`, `tests`, `scripts` or `configs`, which
+git would otherwise skip silently. It is meant for your own machine; in CI, an
+ignored file is simply absent from the checkout.
 
 ```bash
 uv run pytest                                    # everything
@@ -569,8 +580,8 @@ uv run pytest -m integration --no-cov            # integration tests only
 uv run pytest -m "integration and not slow" --no-cov
 ```
 
-Add `--no-cov` when running a subset that does not cover the whole package,
-otherwise the 90% coverage threshold fails.
+Add `--no-cov` when running a subset, since its coverage is not meaningful and
+the measurement slows the tests down.
 
 In CI, the `test` job runs the unit tests with coverage (`-m "not integration"`),
 and a separate `integration` job downloads the dataset (cached between runs) and
@@ -595,6 +606,7 @@ src/machine_failure/
                  inference and the final test evaluation
   experiments/   the commands that run the workflows
 configs/         example config files
+scripts/         tooling that is not part of the package (coverage by package)
 tests/
   data/ features/ evaluation/ models/ config/ pipelines/ experiments/   unit tests, one folder per package
   integration/                                                          tests on the real dataset

@@ -55,6 +55,10 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
+
+# Every package of src/machine_failure must reach this coverage, checked by
+# scripts/coverage_by_package.py after the tests (see the README).
+[tool.package-coverage]
 fail_under = 90
 
 [tool.ruff]
@@ -68,7 +72,7 @@ ignore = ["N803", "N806"]
 
 [tool.mypy]
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 # Name modules by their path, so tests/conftest.py and tests/integration/conftest.py
 # are different modules (tests.conftest and tests.integration.conftest).
 explicit_package_bases = true
