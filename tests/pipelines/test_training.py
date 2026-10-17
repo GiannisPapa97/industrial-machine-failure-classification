@@ -10,7 +10,6 @@ from machine_failure.models import (
     FINAL_THRESHOLD,
     FinalModel,
     load_final_model,
-    train_final_model,
 )
 from machine_failure.pipelines import TrainingPipeline, TrainingResult, splits
 
@@ -119,16 +118,3 @@ def test_save_writes_the_model_and_refuses_to_overwrite(
     with pytest.raises(FileExistsError):
         pipeline.save(result)
     assert pipeline.save(result, overwrite=True) == path
-
-
-def test_the_default_pipeline_matches_train_final_model(make_xy: MakeXY) -> None:
-    X, y = make_xy(n=300)
-
-    from_pipeline = TrainingPipeline().fit(X, y).final
-    from_function = train_final_model(X, y)
-
-    assert from_pipeline.name == from_function.name
-    assert from_pipeline.threshold == from_function.threshold
-    pd.testing.assert_series_equal(
-        from_pipeline.probability(X), from_function.probability(X)
-    )

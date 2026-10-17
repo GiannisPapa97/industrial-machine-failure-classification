@@ -22,7 +22,6 @@ from machine_failure.models.final import (
     FinalModel,
     load_final_model,
     save_final_model,
-    train_final_model,
 )
 from machine_failure.models.search_spaces import SEARCH_SPACES, TUNED_MODELS
 from machine_failure.models.tuned import TUNED_SETTINGS, build_tuned_models
@@ -48,6 +47,5 @@ __all__ = [
     "load_final_model",
     "register",
     "save_final_model",
-    "train_final_model",
     "with_preprocessing",
 ]

@@ -10,9 +10,9 @@ from machine_failure.models import (
     FINAL_THRESHOLD,
     TUNED_MODELS,
     FinalModel,
+    get_model,
     load_final_model,
     save_final_model,
-    train_final_model,
 )
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
@@ -21,37 +21,13 @@ MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 @pytest.fixture(scope="module")
 def trained(make_xy: MakeXY) -> FinalModel:
     X, y = make_xy(n=400, index_offset=500)
-    return train_final_model(X, y, "random_forest", 0.5)
+    model = get_model("random_forest").build_tuned().fit(X, y)
+    return FinalModel("random_forest", model, 0.5)
 
 
 def test_the_chosen_model_is_one_of_the_tuned_models() -> None:
     assert FINAL_MODEL in TUNED_MODELS
     assert 0 < FINAL_THRESHOLD < 1
-
-
-def test_train_final_model_uses_the_tuned_settings_and_is_fitted(
-    make_xy: MakeXY,
-) -> None:
-    X, y = make_xy(n=400, index_offset=500)
-
-    final = train_final_model(X, y)
-
-    assert final.name == FINAL_MODEL
-    assert final.threshold == FINAL_THRESHOLD
-    forest = final.model.named_steps["model"]
-    assert forest.n_estimators == 500  # the tuned setting, not the default 300
-    assert forest.max_depth == 8
-    assert hasattr(forest, "classes_")  # fitted
-
-
-def test_an_unknown_model_or_a_bad_threshold_raises(make_xy: MakeXY) -> None:
-    X, y = make_xy(n=400, index_offset=500)
-
-    with pytest.raises(ValueError, match="unknown model"):
-        train_final_model(X, y, "dummy")
-    for threshold in (0.0, 1.0, -0.2, 1.5):
-        with pytest.raises(ValueError, match="between 0 and 1"):
-            train_final_model(X, y, threshold=threshold)
 
 
 def test_probabilities_are_aligned_with_the_input(
