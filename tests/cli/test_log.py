@@ -94,10 +94,7 @@ def test_configuring_twice_does_not_duplicate_messages(
 
     logging.getLogger(LOGGER_NAME).info("once")
 
-    assert (
-        ours(logging.getLogger(LOGGER_NAME))
-        and len(ours(logging.getLogger(LOGGER_NAME))) == 1
-    )
+    assert len(ours(logging.getLogger(LOGGER_NAME))) == 1
     assert capsys.readouterr().err == "once\n"
 
 
@@ -108,3 +105,13 @@ def test_other_libraries_are_left_alone() -> None:
     configure_logging(verbose=True)
 
     assert (list(other.handlers), other.level) == before
+
+
+def test_handlers_added_by_someone_else_are_kept() -> None:
+    logger = logging.getLogger(LOGGER_NAME)
+    theirs = logging.NullHandler()
+    logger.addHandler(theirs)
+
+    configure_logging()
+
+    assert theirs in logger.handlers

@@ -169,3 +169,19 @@ def test_module_runs_main_when_executed_as_script(
     runpy.run_module("machine_failure.experiments.comparison", run_name="__main__")
 
     assert "logistic_regression" in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("synthetic_data")
+def test_main_logs_progress_unless_quiet(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    argv = ["comparison", "--models", "dummy"]
+    monkeypatch.setattr(sys, "argv", argv)
+    comparison.main()
+    assert "cross-validating dummy" in capsys.readouterr().err
+
+    monkeypatch.setattr(sys, "argv", [*argv, "--quiet"])
+    comparison.main()
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "dummy" in captured.out  # the results are still printed

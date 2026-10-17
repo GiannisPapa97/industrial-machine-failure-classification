@@ -9,13 +9,16 @@ Saved models are pickles: use only a model file you created yourself.
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
-from machine_failure.cli import command
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import InferenceConfig
 from machine_failure.models import MODEL_PATH
 from machine_failure.pipelines import InferencePipeline
+
+logger = logging.getLogger(__name__)
 
 
 @command
@@ -38,7 +41,9 @@ def main() -> None:
         action="store_true",
         help="replace the output file if it already exists",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     if args.output and args.output.exists() and not args.overwrite:
         parser.error(f"{args.output} already exists; pass --overwrite to replace it")
@@ -46,10 +51,12 @@ def main() -> None:
     pipeline = InferencePipeline(InferenceConfig(model_path=args.model_path))
     scores = pipeline.predict_csv(args.input)
     scores.to_csv(args.output or sys.stdout, index_label="row")
-    print(
-        f"{len(scores):,} rows scored, {int(scores['flagged'].sum())} flagged at "
-        f"threshold {pipeline.final.threshold} ({pipeline.final.name}).",
-        file=sys.stderr,
+    logger.info(
+        "%s rows scored, %d flagged at threshold %s (%s).",
+        f"{len(scores):,}",
+        int(scores["flagged"].sum()),
+        pipeline.final.threshold,
+        pipeline.final.name,
     )
 
 

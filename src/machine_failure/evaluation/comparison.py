@@ -1,5 +1,7 @@
 """Compare several models with cross-validation, on the same folds."""
 
+import logging
+
 import pandas as pd
 from sklearn.base import BaseEstimator
 
@@ -10,6 +12,8 @@ from machine_failure.evaluation.cross_validation import (
     cross_validate_model,
     summarize_scores,
 )
+
+logger = logging.getLogger(__name__)
 
 METRICS = list(SCORING)
 
@@ -27,19 +31,18 @@ def compare_models(
 
     Returns one row per model and a (metric, mean/std) column for every metric.
     """
-    summaries = {
-        name: summarize_scores(
-            cross_validate_model(
-                model,
-                X,
-                y,
-                n_splits=n_splits,
-                n_repeats=n_repeats,
-                random_state=random_state,
-            )
-        ).stack()
-        for name, model in models.items()
-    }
+    summaries = {}
+    for name, model in models.items():
+        logger.info("cross-validating %s", name)
+        scores = cross_validate_model(
+            model,
+            X,
+            y,
+            n_splits=n_splits,
+            n_repeats=n_repeats,
+            random_state=random_state,
+        )
+        summaries[name] = summarize_scores(scores).stack()
     return pd.DataFrame(summaries).T
 
 

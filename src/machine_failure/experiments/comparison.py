@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from machine_failure.cli import command
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import ComparisonConfig, load_config
 from machine_failure.evaluation import format_comparison
 from machine_failure.pipelines import ComparisonPipeline
@@ -37,7 +37,9 @@ def main() -> None:
         type=int,
         help="repeat the cross-validation this many times (default: 1)",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     config = load_config(args.config, ComparisonConfig) if args.config else None
     config = config or ComparisonConfig()

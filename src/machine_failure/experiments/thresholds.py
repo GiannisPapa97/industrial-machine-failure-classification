@@ -7,10 +7,10 @@ does the opposite. These functions show that trade-off on the training set.
 """
 
 import argparse
-import sys
+import logging
 from pathlib import Path
 
-from machine_failure.cli import command
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.data import load_xy, split_train_test
 from machine_failure.evaluation import (
     DEFAULT_TARGETS,
@@ -22,6 +22,8 @@ from machine_failure.evaluation import (
     plot_precision_recall,
 )
 from machine_failure.models import build_tuned_models
+
+logger = logging.getLogger(__name__)
 
 
 @command
@@ -40,13 +42,15 @@ def main() -> None:
         default=None,
         help="save the precision-recall plot to this PNG file",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     X, y = load_xy()
     X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
     predictions = {}
     for name, model in build_tuned_models().items():
-        print(f"{name}: out-of-fold predictions", file=sys.stderr, flush=True)
+        logger.info("%s: out-of-fold predictions", name)
         predictions[name] = out_of_fold_predictions(model, X_train, y_train)
 
     print(describe_run(X_train, y_train, 1))

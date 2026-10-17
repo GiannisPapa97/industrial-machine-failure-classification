@@ -8,7 +8,7 @@ evaluation no longer honest.
 
 import argparse
 
-from machine_failure.cli import command
+from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.data import (
     FEATURE_COLUMNS,
     TARGET_COLUMN,
@@ -44,7 +44,9 @@ def main() -> None:
         default=5,
         help="shuffles per feature and fold in the importance (default: 5)",
     )
+    add_verbosity_options(parser)
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     raw = load_raw()
     X, y = raw[FEATURE_COLUMNS].copy(), raw[TARGET_COLUMN].copy()
