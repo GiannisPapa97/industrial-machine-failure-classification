@@ -8,7 +8,7 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models, search_spaces
+from machine_failure import data, models
 from machine_failure.evaluation import METRICS
 from machine_failure.experiments import tune
 from machine_failure.experiments.tune import (
@@ -43,8 +43,8 @@ def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tune, "load_xy", lambda: make_xy(n=400))
     monkeypatch.setattr(tune, "build_candidates", cheap_candidates)
     # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(search_spaces, "SEARCH_SPACES", spaces)
-    monkeypatch.setattr(search_spaces, "TUNED_MODELS", ("random_forest",))
+    monkeypatch.setattr(models, "SEARCH_SPACES", spaces)
+    monkeypatch.setattr(models, "TUNED_MODELS", ("random_forest",))
     monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400))
     monkeypatch.setattr(models, "build_candidates", cheap_candidates)
 

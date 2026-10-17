@@ -9,7 +9,7 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, tuned_models
+from machine_failure import data, models
 from machine_failure.data import split_train_test
 from machine_failure.experiments import final_evaluation
 from machine_failure.experiments.final_evaluation import (
@@ -20,8 +20,7 @@ from machine_failure.experiments.final_evaluation import (
     format_evaluation,
     metrics_at_threshold,
 )
-from machine_failure.final_model import FinalModel, save_final_model
-from machine_failure.models import with_preprocessing
+from machine_failure.models import FinalModel, save_final_model, with_preprocessing
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -168,7 +167,7 @@ def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(final_evaluation, "build_tuned_models", cheap_models)
     # Running the module as a script re-imports it, so patch the sources too.
     monkeypatch.setattr(data, "load_xy", lambda: make_xy(signal=6.0))
-    monkeypatch.setattr(tuned_models, "build_tuned_models", cheap_models)
+    monkeypatch.setattr(models, "build_tuned_models", cheap_models)
 
 
 def test_main_refuses_to_use_the_test_set_without_confirmation(

@@ -20,7 +20,7 @@ from machine_failure.evaluation import (
     out_of_fold_predictions,
     plot_precision_recall,
 )
-from machine_failure.tuned_models import build_tuned_models
+from machine_failure.models import build_tuned_models
 
 
 def main() -> None:

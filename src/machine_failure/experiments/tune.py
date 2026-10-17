@@ -19,8 +19,7 @@ from machine_failure.evaluation import (
     summarize_scores,
     tune_model,
 )
-from machine_failure.models import build_candidates
-from machine_failure.search_spaces import SEARCH_SPACES, TUNED_MODELS
+from machine_failure.models import SEARCH_SPACES, TUNED_MODELS, build_candidates
 
 
 @dataclass

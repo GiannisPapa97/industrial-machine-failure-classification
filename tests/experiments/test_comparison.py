@@ -6,11 +6,10 @@ import pandas as pd
 import pytest
 
 from machine_failure import data, models
-from machine_failure.baseline import build_baselines
 from machine_failure.evaluation import METRICS
 from machine_failure.experiments import comparison
 from machine_failure.experiments.comparison import sort_by_metric
-from machine_failure.models import build_all_models
+from machine_failure.models import build_all_models, build_baselines
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 

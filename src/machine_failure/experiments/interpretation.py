@@ -20,8 +20,7 @@ from machine_failure.evaluation import (
     out_of_fold_predictions,
     permutation_importances,
 )
-from machine_failure.final_model import FINAL_MODEL, FINAL_THRESHOLD
-from machine_failure.tuned_models import build_tuned_models
+from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, build_tuned_models
 
 
 def main() -> None:

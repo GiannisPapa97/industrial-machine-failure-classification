@@ -2,9 +2,9 @@
 
 import argparse
 
-from machine_failure.baseline import build_baselines
 from machine_failure.data import load_xy, split_train_test
 from machine_failure.evaluation import compare_models, describe_run, format_comparison
+from machine_failure.models import build_baselines
 
 
 def main() -> None:

@@ -16,12 +16,12 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
 from machine_failure.evaluation import out_of_fold_predictions
-from machine_failure.final_model import (
+from machine_failure.models import (
     MODEL_PATH,
     FinalModel,
+    build_tuned_models,
     load_final_model,
 )
-from machine_failure.tuned_models import build_tuned_models
 
 METRICS = ("pr_auc", "roc_auc", "recall", "precision", "f1", "accuracy")
 COUNTS = ("tp", "fp", "fn", "tn")

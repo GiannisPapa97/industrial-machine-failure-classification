@@ -7,7 +7,7 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, tuned_models
+from machine_failure import data, models
 from machine_failure.data import FAILURE_MODE_COLUMNS
 from machine_failure.experiments import interpretation
 from machine_failure.models import with_preprocessing
@@ -40,12 +40,12 @@ def cheap_forest() -> Pipeline:
 @pytest.fixture
 def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic table and a quick forest instead of the tuned model."""
-    models = {"random_forest": cheap_forest()}
+    quick = {"random_forest": cheap_forest()}
     monkeypatch.setattr(interpretation, "load_raw", lambda: make_raw(make_xy))
-    monkeypatch.setattr(interpretation, "build_tuned_models", lambda: models)
+    monkeypatch.setattr(interpretation, "build_tuned_models", lambda: quick)
     # Running the module as a script re-imports it, so patch the sources too.
     monkeypatch.setattr(data, "load_raw", lambda *args, **kwargs: make_raw(make_xy))
-    monkeypatch.setattr(tuned_models, "build_tuned_models", lambda: models)
+    monkeypatch.setattr(models, "build_tuned_models", lambda: quick)
 
 
 def test_main_reports_importance_misses_and_medians(

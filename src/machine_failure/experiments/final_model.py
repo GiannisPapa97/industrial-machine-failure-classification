@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from machine_failure.data import load_xy, split_train_test
-from machine_failure.final_model import (
+from machine_failure.models import (
     FINAL_MODEL,
     FINAL_THRESHOLD,
     MODEL_PATH,

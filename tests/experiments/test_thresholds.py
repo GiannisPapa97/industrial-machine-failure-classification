@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, tuned_models
+from machine_failure import data, models
 from machine_failure.experiments import thresholds
 from machine_failure.models import with_preprocessing
 
@@ -31,7 +31,7 @@ def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(thresholds, "build_tuned_models", cheap_models)
     # Running the module as a script re-imports it, so patch the sources too.
     monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400))
-    monkeypatch.setattr(tuned_models, "build_tuned_models", cheap_models)
+    monkeypatch.setattr(models, "build_tuned_models", cheap_models)
 
 
 def test_main_prints_the_comparison_for_the_training_set(

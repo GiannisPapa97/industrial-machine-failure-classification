@@ -8,14 +8,10 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models, tuned_models
-from machine_failure import final_model as library
+from machine_failure import data, models
 from machine_failure.experiments import final_model
-from machine_failure.final_model import (
-    FINAL_THRESHOLD,
-    load_final_model,
-)
-from machine_failure.models import with_preprocessing
+from machine_failure.models import FINAL_THRESHOLD, load_final_model, with_preprocessing
+from machine_failure.models import final as library
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -35,7 +31,7 @@ def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(library, "build_tuned_models", cheap_models)
     # Running the module as a script re-imports it, so patch the sources too.
     monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400, index_offset=500))
-    monkeypatch.setattr(tuned_models, "build_tuned_models", cheap_models)
+    monkeypatch.setattr(models, "build_tuned_models", cheap_models)
     monkeypatch.setattr(models, "build_candidates", cheap_models)
 
 

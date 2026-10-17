@@ -3,8 +3,8 @@ from collections.abc import Callable
 import pandas as pd
 import pytest
 
-from machine_failure.baseline import build_baselines
 from machine_failure.evaluation import METRICS, compare_models, format_comparison
+from machine_failure.models import build_baselines
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
