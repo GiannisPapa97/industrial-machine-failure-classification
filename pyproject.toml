@@ -31,7 +31,7 @@ module-name = "machine_failure"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov --strict-markers"
+addopts = "--cov --strict-markers --import-mode=importlib"
 markers = [
     "integration: runs the real workflows on the downloaded dataset",
     "slow: takes more than about 30 seconds",
