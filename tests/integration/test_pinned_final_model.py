@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 from sklearn.ensemble import RandomForestClassifier
 
-from machine_failure.final_model import (
+from machine_failure.models import (
     FINAL_MODEL,
     FINAL_THRESHOLD,
     FinalModel,

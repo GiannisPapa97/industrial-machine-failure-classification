@@ -1,0 +1,64 @@
+"""The columns of the AI4I 2020 dataset and the checks that its values are valid."""
+
+import pandas as pd
+from pandas.api import types as pdt
+
+ID_COLUMNS = ["UID", "Product ID"]
+TYPE_COLUMN = "Type"
+NUMERIC_FEATURES = [
+    "Air temperature",
+    "Process temperature",
+    "Rotational speed",
+    "Torque",
+    "Tool wear",
+]
+FEATURE_COLUMNS = [TYPE_COLUMN, *NUMERIC_FEATURES]
+TARGET_COLUMN = "Machine failure"
+FAILURE_MODE_COLUMNS = ["TWF", "HDF", "PWF", "OSF", "RNF"]
+
+TYPE_VALUES = {"L", "M", "H"}
+INTEGER_COLUMNS = ["UID", "Rotational speed", "Tool wear"]
+FLOAT_COLUMNS = ["Air temperature", "Process temperature", "Torque"]
+STRING_COLUMNS = ["Product ID", TYPE_COLUMN]
+BINARY_COLUMNS = [TARGET_COLUMN, *FAILURE_MODE_COLUMNS]
+EXPECTED_COLUMNS = [
+    *ID_COLUMNS,
+    TYPE_COLUMN,
+    *NUMERIC_FEATURES,
+    TARGET_COLUMN,
+    *FAILURE_MODE_COLUMNS,
+]
+
+
+class DataValidationError(ValueError):
+    """The raw dataset does not have the expected structure or values."""
+
+
+def validate_raw(df: pd.DataFrame) -> None:
+    """Raise DataValidationError if ``df`` is not the expected raw dataset."""
+    missing = [c for c in EXPECTED_COLUMNS if c not in df.columns]
+    if missing:
+        raise DataValidationError(f"missing columns: {missing}")
+
+    with_nulls = [c for c in EXPECTED_COLUMNS if df[c].isna().any()]
+    if with_nulls:
+        raise DataValidationError(f"columns contain null values: {with_nulls}")
+
+    wrong_dtype = (
+        [c for c in INTEGER_COLUMNS if not pdt.is_integer_dtype(df[c])]
+        + [c for c in FLOAT_COLUMNS if not pdt.is_float_dtype(df[c])]
+        + [c for c in STRING_COLUMNS if not pdt.is_string_dtype(df[c])]
+        + [c for c in BINARY_COLUMNS if not pdt.is_integer_dtype(df[c])]
+    )
+    if wrong_dtype:
+        raise DataValidationError(f"columns have unexpected dtypes: {wrong_dtype}")
+
+    bad_types = set(df[TYPE_COLUMN].unique()) - TYPE_VALUES
+    if bad_types:
+        raise DataValidationError(
+            f"{TYPE_COLUMN!r} has unexpected values: {sorted(bad_types)}"
+        )
+
+    non_binary = [c for c in BINARY_COLUMNS if not df[c].isin([0, 1]).all()]
+    if non_binary:
+        raise DataValidationError(f"columns must contain only 0 or 1: {non_binary}")

@@ -41,7 +41,7 @@ The dataset is not committed. Download it from the UCI repository into
 `data/raw/ai4i2020.csv`:
 
 ```bash
-uv run python -m machine_failure.data
+uv run mf-download
 ```
 
 An existing file is never replaced unless you pass `--overwrite`. Use `--dest`
@@ -89,7 +89,7 @@ from sklearn.pipeline import Pipeline
 
 from machine_failure.data import load_xy, split_train_test
 from machine_failure.evaluation import cross_validate_model, summarize_scores
-from machine_failure.preprocessing import build_preprocessor
+from machine_failure.features import build_preprocessor
 
 X, y = load_xy()
 X_train, X_test, y_train, y_test = split_train_test(X, y)  # stratified 80/20
@@ -118,7 +118,7 @@ print(summarize_scores(scores))  # mean and std of each metric
 ## Baselines
 
 ```bash
-uv run python -m machine_failure.baseline
+uv run mf-baseline
 ```
 
 Cross-validates a dummy classifier (always predicts "no failure") and a
@@ -141,7 +141,7 @@ PR-AUC of about 0.46 is the bar later models need to beat.
 ## Model comparison
 
 ```bash
-uv run python -m machine_failure.comparison
+uv run mf-compare
 ```
 
 Cross-validates the two baselines and eight candidate models on the same
@@ -189,7 +189,7 @@ How to read it:
 ## Feature set comparison
 
 ```bash
-uv run python -m machine_failure.ablation
+uv run mf-ablation
 ```
 
 Cross-validates all 10 models on each of three feature sets, on the same
@@ -236,7 +236,7 @@ How to read it:
 ## Hyperparameter tuning
 
 ```bash
-uv run python -m machine_failure.tune --n-jobs 4
+uv run mf-tune --n-jobs 4
 ```
 
 Tunes four models with randomized search and compares each with its default
@@ -261,7 +261,7 @@ the default-settings comparison above:
   The feature-set comparison also showed that all 9 features are best for the
   tree-based models.
 
-The search spaces are in `search_spaces.py`. Each contains the default setting,
+The search spaces are in `models/search_spaces.py`. Each contains the default setting,
 so the untuned model is always one of the options, and the class-imbalance
 setting is part of the search (class weights, or `scale_pos_weight` for
 XGBoost).
@@ -321,7 +321,7 @@ does the opposite. The default of 0.5 is arbitrary, so this step shows the
 trade-off for the four tuned models and what each recall target costs.
 
 ```bash
-uv run python -m machine_failure.thresholds --plot pr_curves.png
+uv run mf-thresholds --plot pr_curves.png
 ```
 
 It uses the training set only; the test set is not touched. Options: `--targets`
@@ -330,14 +330,14 @@ precision-recall curves as a PNG). It takes about a minute.
 
 How it works:
 
-- `tuned_models.py` fixes the four winning configurations from the tuning step
+- `models/tuned.py` fixes the four winning configurations from the tuning step
   (`build_tuned_models`).
-- `predictions.py` gives every training row a failure probability from a model
+- `evaluation/predictions.py` gives every training row a failure probability from a model
   that never saw it (`out_of_fold_predictions`): stratified 5-fold, the same
   folds as the cross-validation elsewhere. These probabilities behave like
   predictions on new data, so a threshold chosen on them is not tuned on the
   data the model was trained on.
-- `thresholds.py` computes the counts (TP, FP, FN, TN), precision, recall and F1
+- `evaluation/thresholds.py` computes the counts (TP, FP, FN, TN), precision, recall and F1
   at every threshold, and finds the highest threshold that reaches a recall
   target, which is the one with the fewest false alarms.
 
@@ -396,28 +396,28 @@ costly a false alarm is compared with a missed failure. The final evaluation
 uses random forest at its best-F1 threshold, 0.475 (about 83% recall with almost
 no false alarms). A threshold near 0.147 would reach 85% recall at the price of
 about 55 false alarms on the training data; change `FINAL_THRESHOLD` in
-`final_model.py` if false alarms are cheaper than missed failures for your use.
+`models/final.py` if false alarms are cheaper than missed failures for your use.
 
 ## Final evaluation
 
 ```bash
-uv run python -m machine_failure.final_model                 # train and save
-uv run python -m machine_failure.final_evaluation --confirm  # evaluate once
-uv run python -m machine_failure.interpretation              # what it relies on
+uv run mf-train                  # train and save
+uv run mf-evaluate --confirm     # evaluate once
+uv run mf-interpret              # what it relies on
 ```
 
-- `final_model.py` trains the chosen tuned model (`FINAL_MODEL`, random forest) on
+- `models/final.py` trains the chosen tuned model (`FINAL_MODEL`, random forest) on
   the whole training set and saves it with its threshold (`FINAL_THRESHOLD`,
   0.475) to `models/final_model.joblib`. The `models/` folder is not committed,
   and an existing file is only replaced with `--overwrite`. The threshold was
   chosen on out-of-fold predictions of models trained on 80% of the training
   rows, so it is an approximation for the model refit on all of them.
-- `final_evaluation.py` scores the saved model on the test set. The test set is
+- `experiments/final_evaluation.py` scores the saved model on the test set. The test set is
   meant to be used once, on the final model, so the command refuses to run
   without `--confirm`. It reports every metric with a 95% bootstrap interval
   (1,000 resamples of the test rows, keeping the number of failures fixed) next
   to the cross-validation estimate at the same threshold.
-- `interpretation.py` studies the model on the training set only, on held-out
+- `evaluation/interpretation.py` studies the model on the training set only, on held-out
   folds and out-of-fold predictions, so the test set is not looked at again.
 
 Test result (random forest, threshold 0.475; 2,000 rows, 68 failures):
@@ -488,7 +488,7 @@ Limits:
 Using the saved model:
 
 ```python
-from machine_failure.final_model import load_final_model
+from machine_failure.models import load_final_model
 
 final = load_final_model()
 flagged = final.predict(X_new)  # X_new has Type and the five measurements
@@ -533,7 +533,7 @@ integration tests in `tests/integration/` run the real workflows on the real
 dataset and compare the results with the numbers recorded in this README, so a
 refactoring that changes a result is caught. They are marked `integration`
 automatically, and are skipped when the dataset has not been downloaded
-(`uv run python -m machine_failure.data`). Tests that take more than about 30
+(`uv run mf-download`). Tests that take more than about 30
 seconds are also marked `slow`.
 
 ```bash
@@ -556,25 +556,39 @@ unchanged.
 ## Layout
 
 ```
-src/machine_failure/   package code
-  data.py              download, load, validate, train/test split
-  features.py          derived features (FeatureEngineer)
-  preprocessing.py     encoding and scaling pipeline
-  evaluation.py        cross-validated metrics
-  baseline.py          baseline models and their comparison
-  models.py            candidate models and the full model list
-  comparison.py        compare all models, ordered by PR-AUC
-  ablation.py          compare all models across the feature sets
-  search_spaces.py     hyperparameter search spaces of the tuned models
-  tuning.py            randomized search and nested cross-validation
-  tune.py              tune the models and compare with the defaults
-  tuned_models.py      the tuned model configurations
-  predictions.py       out-of-fold predicted probabilities
-  thresholds.py        threshold analysis and recall targets
-  final_model.py       train, save and load the final model
-  final_evaluation.py  one-shot test set evaluation with intervals
-  interpretation.py    feature importance and missed failures
-tests/                 tests
-notebooks/             exploration notebooks
-data/raw/              downloaded dataset (not committed)
+src/machine_failure/
+  data/          download, schema and validation, loading, train/test split
+  features/      derived features (FeatureEngineer), encoding and scaling
+  evaluation/    cross-validation, comparison, out-of-fold predictions,
+                 thresholds, hyperparameter search, feature importance
+  models/        baselines, candidate models, search spaces, tuned
+                 configurations, the final model
+  experiments/   the commands that run the workflows
+tests/
+  data/ features/ evaluation/ models/ experiments/   unit tests, one folder per package
+  integration/                                       tests on the real dataset
+notebooks/       exploration notebooks
+data/raw/        downloaded dataset (not committed)
 ```
+
+Dependencies only point downwards: `data` is used by `features`, which is used by
+`evaluation`, then `models`, then `experiments`. Each package re-exports its
+public names, so code imports from the package
+(`from machine_failure.models import build_candidates`), not from its files.
+
+Commands (installed with the project, run them with `uv run`):
+
+| Command         | What it does                                        | Section                    |
+| --------------- | --------------------------------------------------- | -------------------------- |
+| `mf-download`   | download the dataset                                | Get the data               |
+| `mf-baseline`   | cross-validate the two baselines                    | Baselines                  |
+| `mf-compare`    | compare all models with default settings            | Model comparison           |
+| `mf-ablation`   | compare all models across the feature sets          | Feature set comparison     |
+| `mf-tune`       | tune four models with nested cross-validation       | Hyperparameter tuning      |
+| `mf-thresholds` | threshold analysis at recall targets                | Threshold tuning           |
+| `mf-train`      | train and save the final model                      | Final evaluation           |
+| `mf-evaluate`   | evaluate the final model once on the test set       | Final evaluation           |
+| `mf-interpret`  | feature importance and the failures it misses       | Final evaluation           |
+
+Each also runs as a module, for example
+`uv run python -m machine_failure.experiments.comparison`.

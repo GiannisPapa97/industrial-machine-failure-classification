@@ -4,10 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from machine_failure.features import DERIVED_FEATURES, FeatureEngineer
-from machine_failure.preprocessing import (
+from machine_failure.features import (
+    DERIVED_FEATURES,
     FEATURE_SETS,
     SCALED_FEATURES,
+    FeatureEngineer,
     build_preprocessor,
 )
 

@@ -10,11 +10,14 @@ from typing import Any
 import pytest
 from sklearn.model_selection import ParameterSampler
 
-from machine_failure.baseline import build_baselines
 from machine_failure.evaluation import cross_validate_model, summarize_scores
-from machine_failure.models import build_all_models, build_candidates
-from machine_failure.search_spaces import SEARCH_SPACES
-from machine_failure.tuned_models import build_tuned_models
+from machine_failure.models import (
+    SEARCH_SPACES,
+    build_all_models,
+    build_baselines,
+    build_candidates,
+    build_tuned_models,
+)
 
 TOLERANCE = 2e-4
 

@@ -114,7 +114,7 @@ jobs:
 
       # Skips the download when the cache already restored the file.
       - name: Download the dataset
-        run: uv run python -m machine_failure.data
+        run: uv run mf-download
 
       # A skipped test counts as a pass, so fail loudly if the dataset is missing.
       - name: Check that the dataset is present
