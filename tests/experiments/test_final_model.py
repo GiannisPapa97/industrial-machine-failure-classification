@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
 from machine_failure import data, models, tuned_models
+from machine_failure import final_model as library
 from machine_failure.experiments import final_model
 from machine_failure.final_model import (
     FINAL_THRESHOLD,
@@ -30,7 +31,8 @@ def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         final_model, "load_xy", lambda: make_xy(n=400, index_offset=500)
     )
-    monkeypatch.setattr(final_model, "build_tuned_models", cheap_models)
+    # train_final_model, which the command calls, lives in the library module
+    monkeypatch.setattr(library, "build_tuned_models", cheap_models)
     # Running the module as a script re-imports it, so patch the sources too.
     monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400, index_offset=500))
     monkeypatch.setattr(tuned_models, "build_tuned_models", cheap_models)
