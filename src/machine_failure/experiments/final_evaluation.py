@@ -6,12 +6,11 @@ to tune the model or the threshold.
 """
 
 import argparse
-import dataclasses
 import sys
 from pathlib import Path
 
 from machine_failure.cli import add_verbosity_options, command, configure_logging
-from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_config
+from machine_failure.config import N_BOOTSTRAP, EvaluationConfig, load_or_default
 from machine_failure.models import MODEL_PATH
 from machine_failure.pipelines import EvaluationPipeline, UnconfirmedTestSetError
 
@@ -50,15 +49,12 @@ def main() -> None:
     args = parser.parse_args()
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
-    config = load_config(args.config, EvaluationConfig) if args.config else None
-    config = config or EvaluationConfig()
-    overrides = {
-        "model_path": args.model_path,
-        "n_bootstrap": args.n_bootstrap,
-        "reference": False if args.skip_reference else None,
-    }
-    config = dataclasses.replace(
-        config, **{key: value for key, value in overrides.items() if value is not None}
+    config = load_or_default(
+        args.config,
+        EvaluationConfig,
+        model_path=args.model_path,
+        n_bootstrap=args.n_bootstrap,
+        reference=False if args.skip_reference else None,
     )
 
     try:

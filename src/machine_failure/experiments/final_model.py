@@ -1,11 +1,10 @@
 """The final model: the chosen tuned model, trained on the whole training set."""
 
 import argparse
-import dataclasses
 from pathlib import Path
 
 from machine_failure.cli import add_verbosity_options, command, configure_logging
-from machine_failure.config import TrainingConfig, load_config
+from machine_failure.config import TrainingConfig, load_or_default
 from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH
 from machine_failure.pipelines import TrainingPipeline
 
@@ -43,16 +42,12 @@ def main() -> None:
     args = parser.parse_args()
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
-    config = (
-        load_config(args.config, TrainingConfig) if args.config else TrainingConfig()
-    )
-    overrides = {
-        "model": args.model,
-        "threshold": args.threshold,
-        "output_path": args.output,
-    }
-    config = dataclasses.replace(
-        config, **{key: value for key, value in overrides.items() if value is not None}
+    config = load_or_default(
+        args.config,
+        TrainingConfig,
+        model=args.model,
+        threshold=args.threshold,
+        output_path=args.output,
     )
     pipeline = TrainingPipeline(config)
     result = pipeline.run()  # the test set is not used here

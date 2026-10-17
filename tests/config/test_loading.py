@@ -9,6 +9,7 @@ from machine_failure.config import (
     EvaluationConfig,
     TrainingConfig,
     load_config,
+    load_or_default,
 )
 from machine_failure.config.loading import convert
 
@@ -126,3 +127,20 @@ def test_an_optional_value_is_converted_to_its_type() -> None:
     assert convert(1, float | None, "threshold") == 1.0
     with pytest.raises(ConfigError, match="threshold must be float"):
         convert("high", float | None, "threshold")
+
+
+def test_load_or_default_starts_from_the_defaults_without_a_file() -> None:
+    assert load_or_default(None, TrainingConfig) == TrainingConfig()
+
+
+def test_load_or_default_applies_the_options_that_were_given(tmp_path: Path) -> None:
+    path = write(tmp_path, 'model = "xgboost"\nthreshold = 0.3\n')
+
+    config = load_or_default(path, TrainingConfig, threshold=0.2, model=None)
+
+    assert (config.model, config.threshold) == ("xgboost", 0.2)
+
+
+def test_load_or_default_validates_the_result() -> None:
+    with pytest.raises(ConfigError, match="unknown model"):
+        load_or_default(None, TrainingConfig, model="nope")

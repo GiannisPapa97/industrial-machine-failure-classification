@@ -1,13 +1,12 @@
 """Compare the baselines and the candidate models with cross-validation."""
 
 import argparse
-import dataclasses
 from pathlib import Path
 
 import pandas as pd
 
 from machine_failure.cli import add_verbosity_options, command, configure_logging
-from machine_failure.config import ComparisonConfig, load_config
+from machine_failure.config import ComparisonConfig, load_or_default
 from machine_failure.evaluation import format_comparison
 from machine_failure.pipelines import ComparisonPipeline
 
@@ -41,14 +40,11 @@ def main() -> None:
     args = parser.parse_args()
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
-    config = load_config(args.config, ComparisonConfig) if args.config else None
-    config = config or ComparisonConfig()
-    overrides = {
-        "models": tuple(args.models) if args.models else None,
-        "n_repeats": args.repeats,
-    }
-    config = dataclasses.replace(
-        config, **{key: value for key, value in overrides.items() if value is not None}
+    config = load_or_default(
+        args.config,
+        ComparisonConfig,
+        models=tuple(args.models) if args.models else None,
+        n_repeats=args.repeats,
     )
     result = ComparisonPipeline(config).run()  # the test set is not used here
 

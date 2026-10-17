@@ -1,7 +1,7 @@
 """Typed, validated settings for the workflows."""
 
 from machine_failure.config.errors import ConfigError
-from machine_failure.config.loading import load_config
+from machine_failure.config.loading import load_config, load_or_default
 from machine_failure.config.schemas import (
     N_BOOTSTRAP,
     ComparisonConfig,
@@ -20,4 +20,5 @@ __all__ = [
     "InferenceConfig",
     "TrainingConfig",
     "load_config",
+    "load_or_default",
 ]
