@@ -1,4 +1,3 @@
-import runpy
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -8,7 +7,7 @@ import pytest
 
 from machine_failure.config import EvaluationConfig, TrainingConfig, load_config
 from machine_failure.data import split_train_test
-from machine_failure.experiments import final_evaluation
+from machine_failure.experiments import app
 from machine_failure.pipelines import TrainingPipeline, evaluation, splits
 from machine_failure.pipelines.splits import split_fingerprint
 
@@ -47,11 +46,11 @@ def test_main_refuses_to_use_the_test_set_without_confirmation(
     monkeypatch.setattr(splits, "load_xy", must_not_run)
     monkeypatch.setattr(evaluation, "evaluate_final", must_not_run)
     monkeypatch.setattr(
-        sys, "argv", ["final_evaluation", "--model-path", str(saved_model)]
+        sys, "argv", ["mf", "evaluate", "--model-path", str(saved_model)]
     )
 
     with pytest.raises(SystemExit) as exit_info:
-        final_evaluation.main()
+        app.main()
 
     assert exit_info.value.code == 1
     assert "--confirm" in capsys.readouterr().err
@@ -63,10 +62,10 @@ def test_main_evaluates_on_the_test_set_when_confirmed(
     capsys: pytest.CaptureFixture[str],
     saved_model: Path,
 ) -> None:
-    argv = ["final_evaluation", "--confirm", "--model-path", str(saved_model)]
+    argv = ["mf", "evaluate", "--confirm", "--model-path", str(saved_model)]
     monkeypatch.setattr(sys, "argv", argv + ["--n-bootstrap", "50", "--skip-reference"])
 
-    final_evaluation.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "on the test set (120 rows, 12 failures)" in out  # 20% of 600 rows
@@ -79,10 +78,10 @@ def test_main_adds_the_cross_validation_reference_by_default(
     capsys: pytest.CaptureFixture[str],
     saved_model: Path,
 ) -> None:
-    argv = ["final_evaluation", "--confirm", "--model-path", str(saved_model)]
+    argv = ["mf", "evaluate", "--confirm", "--model-path", str(saved_model)]
     monkeypatch.setattr(sys, "argv", argv + ["--n-bootstrap", "50"])
 
-    final_evaluation.main()
+    app.main()
 
     assert "cross-validation" in capsys.readouterr().out
 
@@ -99,10 +98,10 @@ def test_main_reads_the_settings_from_a_config_file(
         f'model_path = "{saved_model}"\nn_bootstrap = 30\nreference = false\n'
         '[data]\npath = "other.csv"\n'
     )
-    argv = ["final_evaluation", "--confirm", "--config", str(config)]
+    argv = ["mf", "evaluate", "--confirm", "--config", str(config)]
     monkeypatch.setattr(sys, "argv", argv)
 
-    final_evaluation.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "on the test set (120 rows, 12 failures)" in out  # 20% of 600 rows
@@ -118,7 +117,7 @@ def test_command_line_options_override_the_config_file(
 ) -> None:
     config = tmp_path / "evaluate.toml"
     config.write_text(f'model_path = "{tmp_path / "nope.joblib"}"\nreference = true\n')
-    argv = ["final_evaluation", "--confirm", "--config", str(config)]
+    argv = ["mf", "evaluate", "--confirm", "--config", str(config)]
     argv += [
         "--model-path",
         str(saved_model),
@@ -128,7 +127,7 @@ def test_command_line_options_override_the_config_file(
     ]
     monkeypatch.setattr(sys, "argv", argv)
 
-    final_evaluation.main()
+    app.main()
 
     assert "cross-validation" not in capsys.readouterr().out
 
@@ -146,7 +145,8 @@ def test_main_points_to_the_command_that_creates_a_missing_model(
     tmp_path: Path,
 ) -> None:
     argv = [
-        "final_evaluation",
+        "mf",
+        "evaluate",
         "--confirm",
         "--model-path",
         str(tmp_path / "nope.joblib"),
@@ -154,22 +154,5 @@ def test_main_points_to_the_command_that_creates_a_missing_model(
     monkeypatch.setattr(sys, "argv", argv)
 
     with pytest.raises(SystemExit):
-        final_evaluation.main()
-    assert "mf-train" in capsys.readouterr().err
-
-
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    small_run: None,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    saved_model: Path,
-) -> None:
-    argv = ["final_evaluation", "--confirm", "--model-path", str(saved_model)]
-    monkeypatch.setattr(sys, "argv", argv + ["--n-bootstrap", "20", "--skip-reference"])
-
-    runpy.run_module(
-        "machine_failure.experiments.final_evaluation", run_name="__main__"
-    )
-
-    assert "on the test set" in capsys.readouterr().out
+        app.main()
+    assert "mf train" in capsys.readouterr().err

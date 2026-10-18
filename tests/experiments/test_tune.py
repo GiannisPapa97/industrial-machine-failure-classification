@@ -1,7 +1,7 @@
 import logging
-import runpy
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -9,15 +9,16 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models
+from machine_failure import models
 from machine_failure.evaluation import METRICS
-from machine_failure.experiments import tune
+from machine_failure.experiments import app, tune
 from machine_failure.experiments.tune import (
     TuningResult,
     comparison_table,
     format_results,
     tune_models,
 )
+from machine_failure.pipelines import splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -41,13 +42,8 @@ def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     spaces = {"random_forest": SMALL_SPACE}
     monkeypatch.setattr(tune, "SEARCH_SPACES", spaces)
     monkeypatch.setattr(tune, "TUNED_MODELS", ("random_forest",))
-    monkeypatch.setattr(tune, "load_xy", lambda: make_xy(n=400))
+    monkeypatch.setattr(splits, "load_xy", lambda path: make_xy(n=400))
     monkeypatch.setattr(tune, "build_candidates", cheap_candidates)
-    # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(models, "SEARCH_SPACES", spaces)
-    monkeypatch.setattr(models, "TUNED_MODELS", ("random_forest",))
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400))
-    monkeypatch.setattr(models, "build_candidates", cheap_candidates)
 
 
 @pytest.fixture(scope="module")
@@ -111,10 +107,11 @@ def test_main_prints_the_comparison_for_the_training_set(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["tune", "--n-iter", "2", "--inner-splits", "2"]
+    argv = ["mf", "tune", "--models", "random_forest", "--n-iter", "2"]
+    argv += ["--inner-splits", "2"]
     monkeypatch.setattr(sys, "argv", argv)
 
-    tune.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "320 rows, 32 failures" in out  # 80% of 400 rows, 10% failures
@@ -127,10 +124,19 @@ def test_main_accepts_models_repeats_and_jobs(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["tune", "--models", "random_forest", "--n-iter", "2", "--inner-splits", "2"]
+    argv = [
+        "mf",
+        "tune",
+        "--models",
+        "random_forest",
+        "--n-iter",
+        "2",
+        "--inner-splits",
+        "2",
+    ]
     monkeypatch.setattr(sys, "argv", argv + ["--repeats", "2", "--n-jobs", "2"])
 
-    tune.main()
+    app.main()
 
     assert "2 repeat(s)" in capsys.readouterr().out
 
@@ -138,21 +144,28 @@ def test_main_accepts_models_repeats_and_jobs(
 def test_main_rejects_an_unknown_model(
     small_run: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["tune", "--models", "dummy"])
+    monkeypatch.setattr(sys, "argv", ["mf", "tune", "--models", "dummy"])
 
-    with pytest.raises(SystemExit):
-        tune.main()
+    with pytest.raises(SystemExit) as exit_info:
+        app.main()
+    assert exit_info.value.code == 2  # argparse: not one of the choices
 
 
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    small_run: None,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+@pytest.mark.usefixtures("small_run")
+def test_main_reads_the_settings_from_a_config_file(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
-    argv = ["tune", "--n-iter", "2", "--inner-splits", "2"]
-    monkeypatch.setattr(sys, "argv", argv)
+    config = tmp_path / "tune.toml"
+    config.write_text('models = ["random_forest"]\nn_iter = 2\ninner_splits = 2\n')
 
-    runpy.run_module("machine_failure.experiments.tune", run_name="__main__")
+    app.main(["tune", "--config", str(config)])
 
-    assert "random_forest (default)" in capsys.readouterr().out
+    assert "2 random settings per search, 2-fold inner" in capsys.readouterr().out
+
+
+def test_main_rejects_settings_out_of_range(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        app.main(["tune", "--n-iter", "0"])
+
+    assert exit_info.value.code == 1
+    assert capsys.readouterr().err == "error: n_iter must be at least 1, not 0\n"

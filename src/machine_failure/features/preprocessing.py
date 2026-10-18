@@ -6,13 +6,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from machine_failure.data import NUMERIC_FEATURES, TYPE_COLUMN
+from machine_failure.data import NUMERIC_FEATURES, TYPE_COLUMN, TYPE_VALUES
 from machine_failure.features.engineer import DERIVED_FEATURES, FeatureEngineer
 
 FeatureSet = Literal["raw", "computed", "all"]
 FEATURE_SETS: tuple[FeatureSet, ...] = ("raw", "computed", "all")
 
-TYPE_CATEGORIES = ["L", "M", "H"]
+TYPE_CATEGORIES = list(TYPE_VALUES)  # the one-hot columns, in this order
 SCALED_FEATURES = [*NUMERIC_FEATURES, *DERIVED_FEATURES]
 
 

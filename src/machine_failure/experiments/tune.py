@@ -7,8 +7,8 @@ from typing import Any
 
 import pandas as pd
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
-from machine_failure.data import RANDOM_STATE, load_xy, split_train_test
+from machine_failure.config import TuningConfig, load_or_default
+from machine_failure.data import RANDOM_STATE
 from machine_failure.evaluation import (
     MAIN_METRIC,
     N_SPLITS,
@@ -20,9 +20,17 @@ from machine_failure.evaluation import (
     summarize_scores,
     tune_model,
 )
+from machine_failure.experiments.options import (
+    add_config_option,
+    add_data_option,
+    data_option,
+)
 from machine_failure.models import SEARCH_SPACES, TUNED_MODELS, build_candidates
+from machine_failure.pipelines.splits import load_split
 
 logger = logging.getLogger(__name__)
+
+HELP = "tune the selected models with nested cross-validation"
 
 
 @dataclass
@@ -47,7 +55,6 @@ def tune_models(
     n_jobs: int | None = None,
 ) -> dict[str, TuningResult]:
     """Tune each model on the 9-feature set; compare with its default settings.
-
 
     For every model this scores the default settings, estimates the tuned
     model with nested cross-validation (on the same outer folds), and runs the
@@ -115,64 +122,65 @@ def format_results(results: dict[str, TuningResult]) -> str:
     return "\n".join(lines)
 
 
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """The options of ``mf tune``."""
+    add_config_option(parser, "tune_default.toml")
+    add_data_option(parser)
     parser.add_argument(
         "--models",
         nargs="+",
         choices=TUNED_MODELS,
-        default=list(TUNED_MODELS),
         help="models to tune (default: all of them)",
     )
     parser.add_argument(
         "--n-iter",
         type=int,
-        default=20,
         help="random settings to try per search (default: 20)",
     )
     parser.add_argument(
         "--inner-splits",
         type=int,
-        default=3,
         help="folds inside each search (default: 3)",
     )
     parser.add_argument(
         "--repeats",
         type=int,
-        default=1,
         help="repeat the outer cross-validation this many times (default: 1)",
     )
     parser.add_argument(
         "--n-jobs",
         type=int,
-        default=None,
         help="parallel jobs; -1 uses every core (default: 1)",
     )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
-    X, y = load_xy()
-    X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
-    results = tune_models(
-        X_train,
-        y_train,
-        tuple(args.models),
+
+def run(args: argparse.Namespace) -> None:
+    """``mf tune``: tune the models and compare them with their defaults."""
+    config = load_or_default(
+        args.config,
+        TuningConfig,
+        models=tuple(args.models) if args.models else None,
         n_iter=args.n_iter,
         inner_splits=args.inner_splits,
         n_repeats=args.repeats,
         n_jobs=args.n_jobs,
+        data=data_option(args),
+    )
+    X_train, _, y_train, _ = load_split(config.data)  # the test rows are not used
+    results = tune_models(
+        X_train,
+        y_train,
+        config.models,
+        n_iter=config.n_iter,
+        inner_splits=config.inner_splits,
+        n_repeats=config.n_repeats,
+        n_jobs=config.n_jobs,
     )
 
-    print(describe_run(X_train, y_train, args.repeats))
+    print(describe_run(X_train, y_train, config.n_repeats))
     print(
-        f"All 9 features. Tuned models: {args.n_iter} random settings per search, "
-        f"{args.inner_splits}-fold inner cross-validation, scores from nested "
-        f"cross-validation on the same {N_SPLITS} outer folds as the default."
+        f"All 9 features. Tuned models: {config.n_iter} random settings per "
+        f"search, {config.inner_splits}-fold inner cross-validation, scores from "
+        f"nested cross-validation on the same {N_SPLITS} outer folds as the default."
     )
     print(format_results(results))
-
-
-if __name__ == "__main__":
-    main()

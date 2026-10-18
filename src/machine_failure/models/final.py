@@ -90,14 +90,14 @@ def load_final_model(path: Path = MODEL_PATH) -> FinalModel:
     arbitrary code when loaded.
     """
     if not path.is_file():
-        raise FileNotFoundError(f"{path} not found; run `uv run mf-train` first")
+        raise FileNotFoundError(f"{path} not found; run `uv run mf train` first")
     try:
         saved = joblib.load(path)
     except Exception as error:  # any unreadable file: not a model, not a bug here
         raise ModelFileError(f"{path} cannot be read as a saved model") from error
     if isinstance(saved, dict) and set(saved) == VERSION_1_KEYS:
         logger.warning(
-            "%s was saved without metadata; retrain it with `uv run mf-train "
+            "%s was saved without metadata; retrain it with `uv run mf train "
             "--overwrite` to record how it was made",
             path,
         )

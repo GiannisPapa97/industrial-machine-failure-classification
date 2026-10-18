@@ -13,17 +13,17 @@ import logging
 import sys
 from pathlib import Path
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import InferenceConfig
 from machine_failure.models import MODEL_PATH
 from machine_failure.pipelines import InferencePipeline
 
 logger = logging.getLogger(__name__)
 
+HELP = "score new rows with the saved model"
 
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """The options of ``mf predict``."""
     parser.add_argument("input", type=Path, help="CSV file with the rows to score")
     parser.add_argument(
         "--model-path",
@@ -41,13 +41,14 @@ def main() -> None:
         action="store_true",
         help="replace the output file if it already exists",
     )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
+
+def run(args: argparse.Namespace) -> None:
+    """``mf predict``: score the rows of a CSV file with the saved model."""
     if args.output and args.output.exists() and not args.overwrite:
-        parser.error(f"{args.output} already exists; pass --overwrite to replace it")
-
+        raise FileExistsError(
+            f"{args.output} already exists; pass --overwrite to replace it"
+        )
     pipeline = InferencePipeline(InferenceConfig(model_path=args.model_path))
     scores = pipeline.predict_csv(args.input)
     scores.to_csv(args.output or sys.stdout, index_label="row")
@@ -58,7 +59,3 @@ def main() -> None:
         pipeline.final.threshold,
         pipeline.final.name,
     )
-
-
-if __name__ == "__main__":
-    main()

@@ -82,7 +82,7 @@ def test_invalid_rows_fail_before_the_model_is_loaded(tmp_path: Path) -> None:
 def test_a_missing_model_file_says_how_to_train_one(tmp_path: Path) -> None:
     pipeline = InferencePipeline(InferenceConfig(model_path=tmp_path / "nope.joblib"))
 
-    with pytest.raises(FileNotFoundError, match="mf-train"):
+    with pytest.raises(FileNotFoundError, match="mf train"):
         pipeline.final  # noqa: B018
 
 

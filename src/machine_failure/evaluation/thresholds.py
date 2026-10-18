@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
+from sklearn.metrics import average_precision_score, roc_auc_score
 
 DEFAULT_TARGETS = (0.80, 0.85, 0.90)
 # The first four slots of the categorical palette, in order.
@@ -153,3 +154,32 @@ def plot_precision_recall(
     ax.legend(loc="lower left", frameon=False, labelcolor=INK)
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor=SURFACE)
+
+
+def metrics_at_threshold(
+    labels: np.ndarray, probabilities: np.ndarray, threshold: float
+) -> dict[str, float]:
+    """The metrics and counts of the alerts raised at ``threshold``.
+
+    A row is flagged when its probability is at least the threshold. PR-AUC and
+    ROC-AUC do not depend on the threshold; the rest do. Precision and F1 are 0
+    when nothing is flagged.
+    """
+    flagged = probabilities >= threshold
+    failure = labels == 1
+    tp = int((flagged & failure).sum())
+    fp = int((flagged & ~failure).sum())
+    fn = int((~flagged & failure).sum())
+    tn = int((~flagged & ~failure).sum())
+    return {
+        "pr_auc": float(average_precision_score(labels, probabilities)),
+        "roc_auc": float(roc_auc_score(labels, probabilities)),
+        "recall": tp / (tp + fn),
+        "precision": tp / (tp + fp) if tp + fp else 0.0,
+        "f1": 2 * tp / (2 * tp + fp + fn),
+        "accuracy": (tp + tn) / len(labels),
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "tn": tn,
+    }

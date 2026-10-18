@@ -9,11 +9,20 @@ from machine_failure.config import (
     DataConfig,
     EvaluationConfig,
     InferenceConfig,
+    InterpretationConfig,
+    ThresholdsConfig,
     TrainingConfig,
+    TuningConfig,
 )
 from machine_failure.data import DEFAULT_RAW_DIR, RAW_FILENAME
 from machine_failure.evaluation import N_SPLITS
-from machine_failure.models import FINAL_MODEL, FINAL_THRESHOLD, MODEL_PATH, all_models
+from machine_failure.models import (
+    FINAL_MODEL,
+    FINAL_THRESHOLD,
+    MODEL_PATH,
+    TUNED_MODELS,
+    all_models,
+)
 
 
 def test_data_config_defaults_are_the_values_used_so_far() -> None:
@@ -143,3 +152,86 @@ def test_evaluation_config_rejects_too_few_resamples(n_bootstrap: int) -> None:
 
 def test_inference_config_defaults_to_the_default_model_path() -> None:
     assert InferenceConfig().model_path == MODEL_PATH
+
+
+def test_tuning_config_defaults_are_the_values_used_so_far() -> None:
+    config = TuningConfig()
+
+    assert config.models == TUNED_MODELS
+    assert (config.n_iter, config.inner_splits, config.n_repeats) == (20, 3, 1)
+    assert config.n_jobs is None
+    assert config.data == DataConfig()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"models": ()}, "at least one model"),
+        ({"models": ("knn",)}, "knn is not tuned"),
+        ({"models": ("nope",)}, "unknown model"),
+        ({"n_iter": 0}, "n_iter must be at least 1"),
+        ({"inner_splits": 1}, "inner_splits must be at least 2"),
+        ({"n_repeats": 0}, "n_repeats must be at least 1"),
+        ({"n_jobs": 0}, "n_jobs"),
+        ({"n_jobs": -2}, "n_jobs"),
+    ],
+)
+def test_tuning_config_rejects_bad_values(
+    kwargs: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ConfigError, match=message):
+        TuningConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("n_jobs", [-1, 1, 4])
+def test_tuning_config_accepts_every_core_or_a_count(n_jobs: int) -> None:
+    assert TuningConfig(n_jobs=n_jobs).n_jobs == n_jobs
+
+
+def test_thresholds_config_defaults_are_the_values_used_so_far() -> None:
+    config = ThresholdsConfig()
+
+    assert config.recall_targets == (0.80, 0.85, 0.90)
+    assert config.plot is None
+
+
+@pytest.mark.parametrize(
+    ("targets", "message"),
+    [((), "at least one target"), ((0.8, 0.0), "in \\(0, 1\\]"), ((1.2,), "1.2")],
+)
+def test_thresholds_config_rejects_bad_targets(
+    targets: tuple[float, ...], message: str
+) -> None:
+    with pytest.raises(ConfigError, match=message):
+        ThresholdsConfig(recall_targets=targets)
+
+
+def test_interpretation_config_studies_the_final_model_at_its_threshold() -> None:
+    config = InterpretationConfig()
+
+    assert config.model == FINAL_MODEL
+    assert config.decision_threshold == FINAL_THRESHOLD
+    assert config.n_repeats == 5
+    assert InterpretationConfig(model="xgboost").decision_threshold == 0.654
+    assert InterpretationConfig(threshold=0.3).decision_threshold == 0.3
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"model": "svm"}, "svm is not tuned"),
+        ({"threshold": 1.0}, "threshold"),
+        ({"n_repeats": 0}, "n_repeats"),
+    ],
+)
+def test_interpretation_config_rejects_bad_values(
+    kwargs: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ConfigError, match=message):
+        InterpretationConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_a_model_without_probabilities_cannot_be_the_final_model() -> None:
+    # the SVM is compared through its decision function, but cannot be thresholded
+    with pytest.raises(ConfigError, match="svm gives no probabilities"):
+        TrainingConfig(model="svm", tuned=False, threshold=0.5)

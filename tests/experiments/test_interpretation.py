@@ -1,4 +1,3 @@
-import runpy
 import sys
 from collections.abc import Callable
 
@@ -7,10 +6,10 @@ import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models
-from machine_failure.data import FAILURE_MODE_COLUMNS
-from machine_failure.experiments import interpretation
+from machine_failure.data import FAILURE_MODE_COLUMNS, FEATURE_COLUMNS, TARGET_COLUMN
+from machine_failure.experiments import app, interpretation
 from machine_failure.models import with_preprocessing
+from machine_failure.pipelines import splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -41,11 +40,11 @@ def cheap_forest() -> Pipeline:
 def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic table and a quick forest instead of the tuned model."""
     quick = {"random_forest": cheap_forest()}
-    monkeypatch.setattr(interpretation, "load_raw", lambda: make_raw(make_xy))
+    raw = make_raw(make_xy)
+    X, y = raw[FEATURE_COLUMNS].copy(), raw[TARGET_COLUMN].copy()
+    monkeypatch.setattr(splits, "load_xy", lambda path: (X, y))
+    monkeypatch.setattr(interpretation, "load_raw", lambda path: raw)
     monkeypatch.setattr(interpretation, "build_tuned_models", lambda: quick)
-    # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_raw", lambda *args, **kwargs: make_raw(make_xy))
-    monkeypatch.setattr(models, "build_tuned_models", lambda: quick)
 
 
 def test_main_reports_importance_misses_and_medians(
@@ -53,9 +52,9 @@ def test_main_reports_importance_misses_and_medians(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["interpretation", "--n-repeats", "2"])
+    monkeypatch.setattr(sys, "argv", ["mf", "interpret", "--n-repeats", "2"])
 
-    interpretation.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "480 rows, 48 failures" in out  # 80% of 600 rows: the test set is not used
@@ -70,22 +69,28 @@ def test_main_accepts_a_model_and_threshold(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["interpretation", "--model", "random_forest", "--threshold", "0.3"]
+    argv = ["mf", "interpret", "--model", "random_forest", "--threshold", "0.3"]
     monkeypatch.setattr(sys, "argv", argv + ["--n-repeats", "2"])
 
-    interpretation.main()
+    app.main()
 
     assert "threshold 0.3." in capsys.readouterr().out
 
 
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    small_run: None,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.usefixtures("small_run")
+def test_main_uses_the_model_threshold_by_default(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["interpretation", "--n-repeats", "2"])
+    app.main(["interpret", "--n-repeats", "1"])
 
-    runpy.run_module("machine_failure.experiments.interpretation", run_name="__main__")
+    assert "threshold 0.475" in capsys.readouterr().out
 
-    assert "Drop in PR-AUC" in capsys.readouterr().out
+
+def test_main_rejects_a_model_that_is_not_tuned(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        app.main(["interpret", "--model", "svm"])
+
+    assert exit_info.value.code == 2  # argparse: not one of the choices
+    assert "invalid choice: 'svm'" in capsys.readouterr().err

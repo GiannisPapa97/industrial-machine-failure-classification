@@ -1,14 +1,15 @@
-"""Compare all models on the raw, computed and combined feature sets."""
+"""Compare models on the raw, computed and combined feature sets.
 
-import argparse
+Used by ``mf compare --feature-sets``.
+"""
+
 import logging
 
 import pandas as pd
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
 from machine_failure.config import ComparisonConfig
 from machine_failure.data import RANDOM_STATE
-from machine_failure.evaluation import METRICS, N_SPLITS, describe_run
+from machine_failure.evaluation import N_SPLITS
 from machine_failure.features import FEATURE_SETS, FeatureSet
 from machine_failure.models import all_models
 from machine_failure.pipelines import ComparisonPipeline
@@ -32,7 +33,6 @@ def compare_feature_sets(
     random_state: int = RANDOM_STATE,
 ) -> pd.DataFrame:
     """Cross-validate the models (all by default) on each feature set.
-
 
     Returns one row per model and a (feature set, metric, mean/std) column for
     every combination. Progress is logged, since a full run takes a few minutes.
@@ -68,45 +68,3 @@ def format_feature_set_table(table: pd.DataFrame, metric: str = "pr_auc") -> str
         }
     )
     return cells.reindex(order).to_string()
-
-
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--metric",
-        choices=METRICS,
-        default="pr_auc",
-        help="metric to show in the table (default: pr_auc)",
-    )
-    parser.add_argument(
-        "--models",
-        nargs="+",
-        help="compare only these models (default: all of them)",
-    )
-    parser.add_argument(
-        "--repeats",
-        type=int,
-        default=1,
-        help="repeat the cross-validation this many times (default: 1)",
-    )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
-
-    # the test set is not used here
-    pipeline = ComparisonPipeline(ComparisonConfig(n_repeats=args.repeats))
-    X_train, y_train = pipeline.load_training_data()
-    models = tuple(args.models) if args.models else None
-    table = compare_feature_sets(
-        X_train, y_train, models=models, n_repeats=args.repeats
-    )
-
-    print(describe_run(X_train, y_train, args.repeats))
-    print(FEATURE_SET_DESCRIPTION)
-    print(f"Showing {args.metric}; models are ordered by their best mean across sets.")
-    print(format_feature_set_table(table, args.metric))
-
-
-if __name__ == "__main__":
-    main()

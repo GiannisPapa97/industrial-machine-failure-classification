@@ -1,4 +1,4 @@
-# Compare every model with default settings: the same as `uv run mf-compare`.
+# Compare every model with default settings: the same as `uv run mf compare`.
 feature_set = "all"
 n_splits = 5
 n_repeats = 1

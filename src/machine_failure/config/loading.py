@@ -72,3 +72,15 @@ def load_config[C](path: Path, config_class: type[C]) -> C:
         return build(config_class, table)
     except ConfigError as error:
         raise ConfigError(f"{path}: {error}") from error
+
+
+def load_or_default[C](path: Path | None, config_class: type[C], **overrides: Any) -> C:
+    """The config in ``path`` (or the defaults), with ``overrides`` applied.
+
+    This is how a command combines ``--config`` with its own options: an option
+    that was not given is ``None`` and leaves the file's (or default) value alone.
+    The result is validated like any config.
+    """
+    config = load_config(path, config_class) if path is not None else config_class()
+    given = {key: value for key, value in overrides.items() if value is not None}
+    return dataclasses.replace(config, **given)  # type: ignore[type-var]

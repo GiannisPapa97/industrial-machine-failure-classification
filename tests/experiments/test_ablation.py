@@ -1,5 +1,4 @@
 import logging
-import runpy
 import sys
 from collections.abc import Callable
 
@@ -7,7 +6,7 @@ import pandas as pd
 import pytest
 
 from machine_failure.evaluation import METRICS
-from machine_failure.experiments import ablation
+from machine_failure.experiments import app
 from machine_failure.experiments.ablation import (
     compare_feature_sets,
     format_feature_set_table,
@@ -94,9 +93,13 @@ def test_main_prints_the_table_for_the_training_set(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["ablation", *BASELINE_ARGS])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["mf", "compare", "--feature-sets", "raw", "computed", "all", *BASELINE_ARGS],
+    )
 
-    ablation.main()
+    app.main()
 
     captured = capsys.readouterr()
     assert "480 rows, 48 failures" in captured.out
@@ -115,10 +118,22 @@ def test_main_accepts_metric_and_repeats(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["ablation", *BASELINE_ARGS, "--metric", "recall", "--repeats", "2"],
+        [
+            "mf",
+            "compare",
+            "--feature-sets",
+            "raw",
+            "computed",
+            "all",
+            *BASELINE_ARGS,
+            "--metric",
+            "recall",
+            "--repeats",
+            "2",
+        ],
     )
 
-    ablation.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "Showing recall" in out
@@ -128,20 +143,21 @@ def test_main_accepts_metric_and_repeats(
 def test_main_rejects_an_unknown_metric(
     fast_run: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["ablation", "--metric", "luck"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "mf",
+            "compare",
+            "--feature-sets",
+            "raw",
+            "computed",
+            "all",
+            "--metric",
+            "luck",
+        ],
+    )
 
-    with pytest.raises(SystemExit):
-        ablation.main()
-
-
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    fast_run: None,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setattr(sys, "argv", ["ablation", *BASELINE_ARGS])
-
-    runpy.run_module("machine_failure.experiments.ablation", run_name="__main__")
-
-    assert "logistic_regression" in capsys.readouterr().out
+    with pytest.raises(SystemExit) as exit_info:
+        app.main()
+    assert exit_info.value.code == 2  # argparse: not one of the choices

@@ -12,7 +12,7 @@ def load_raw(path: Path = DEFAULT_RAW_DIR / RAW_FILENAME) -> pd.DataFrame:
     """Read the raw CSV and validate it. Returns all columns unchanged."""
     if not path.is_file():
         raise FileNotFoundError(
-            f"{path} not found; run `uv run mf-download` to download it"
+            f"{path} not found; run `uv run mf download` to download it"
         )
     df = pd.read_csv(path)
     validate_raw(df)

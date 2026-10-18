@@ -3,7 +3,7 @@
 Integration tests run the real workflows on the real dataset and compare the
 results with the numbers recorded in the README. They protect the behavior of the
 project during refactoring. They are skipped when the dataset is not downloaded:
-run ``uv run mf-download`` first.
+run ``uv run mf download`` first.
 """
 
 from pathlib import Path
@@ -28,7 +28,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 def dataset_path() -> Path:
     """The downloaded dataset file; the test is skipped if it is missing."""
     if not DATASET.is_file():
-        pytest.skip(f"{DATASET} not found; run `uv run mf-download` first")
+        pytest.skip(f"{DATASET} not found; run `uv run mf download` first")
     return DATASET
 
 

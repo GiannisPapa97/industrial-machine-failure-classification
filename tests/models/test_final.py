@@ -102,7 +102,7 @@ def test_saving_never_overwrites_unless_asked(
 
 
 def test_loading_a_missing_file_points_to_the_command(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="mf-train"):
+    with pytest.raises(FileNotFoundError, match="mf train"):
         load_final_model(tmp_path / "nope.joblib")
 
 

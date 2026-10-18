@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 from machine_failure.cli import UserError
 from machine_failure.config import EvaluationConfig, TrainingConfig
 from machine_failure.data import split_train_test
-from machine_failure.evaluation import out_of_fold_predictions
+from machine_failure.evaluation import metrics_at_threshold, out_of_fold_predictions
 from machine_failure.models import FinalModel, load_final_model, with_preprocessing
 from machine_failure.pipelines import (
     EvaluationPipeline,
@@ -26,15 +26,10 @@ from machine_failure.pipelines.evaluation import (
     cross_validated_reference,
     evaluate_final,
     format_evaluation,
-    metrics_at_threshold,
 )
 from machine_failure.pipelines.splits import split_fingerprint
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
-
-# A case that can be worked out by hand: 3 failures and 3 normal rows.
-LABELS = np.array([1, 1, 0, 1, 0, 0])
-PROBABILITIES = np.array([0.9, 0.8, 0.7, 0.6, 0.4, 0.2])
 
 
 def cheap_models() -> dict[str, Pipeline]:
@@ -50,31 +45,6 @@ def fitted_final(
     X_train, X_test, y_train, y_test = split_train_test(X, y)
     model = cheap_models()["random_forest"].fit(X_train, y_train)
     return FinalModel("random_forest", model, threshold), X_test, y_test
-
-
-def test_metrics_match_a_hand_calculation() -> None:
-    scores = metrics_at_threshold(LABELS, PROBABILITIES, 0.65)
-
-    assert (scores["tp"], scores["fp"], scores["fn"], scores["tn"]) == (2, 1, 1, 2)
-    assert scores["precision"] == pytest.approx(2 / 3)
-    assert scores["recall"] == pytest.approx(2 / 3)
-    assert scores["f1"] == pytest.approx(2 / 3)
-    assert scores["accuracy"] == pytest.approx(4 / 6)
-    assert scores["pr_auc"] == pytest.approx((1 + 1 + 3 / 4) / 3)
-    assert scores["roc_auc"] == pytest.approx(8 / 9)
-
-
-def test_a_probability_at_the_threshold_is_flagged() -> None:
-    scores = metrics_at_threshold(LABELS, PROBABILITIES, 0.7)
-
-    assert scores["tp"] + scores["fp"] == 3  # 0.9, 0.8 and 0.7
-
-
-def test_nothing_flagged_gives_zero_precision_and_recall() -> None:
-    scores = metrics_at_threshold(LABELS, PROBABILITIES, 0.99)
-
-    assert (scores["precision"], scores["recall"], scores["f1"]) == (0, 0, 0)
-    assert scores["roc_auc"] == pytest.approx(8 / 9)  # does not depend on the threshold
 
 
 def test_bootstrap_keeps_the_number_of_failures_fixed() -> None:
@@ -244,7 +214,7 @@ def test_a_missing_model_points_to_the_command_that_creates_it(
 ) -> None:
     config = EvaluationConfig(model_path=tmp_path / "nope.joblib")
 
-    with pytest.raises(FileNotFoundError, match="mf-train"):
+    with pytest.raises(FileNotFoundError, match="mf train"):
         EvaluationPipeline(config).run(confirm=True)
 
 
@@ -290,7 +260,7 @@ def test_a_model_without_a_split_record_is_refused_before_scoring(
 
     monkeypatch.setattr(final_evaluation, "evaluate_final", must_not_run)
 
-    with pytest.raises(SplitMismatchError, match="mf-train --overwrite"):
+    with pytest.raises(SplitMismatchError, match="mf train --overwrite"):
         EvaluationPipeline(EvaluationConfig(model_path=path)).run(confirm=True)
 
 

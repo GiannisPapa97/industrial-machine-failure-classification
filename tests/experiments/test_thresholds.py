@@ -1,4 +1,3 @@
-import runpy
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -9,9 +8,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
-from machine_failure import data, models
-from machine_failure.experiments import thresholds
+from machine_failure.experiments import app, thresholds
 from machine_failure.models import with_preprocessing
+from machine_failure.pipelines import splits
 
 MakeXY = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -27,11 +26,8 @@ def cheap_models() -> dict[str, Pipeline]:
 @pytest.fixture
 def small_run(make_xy: MakeXY, monkeypatch: pytest.MonkeyPatch) -> None:
     """A small synthetic dataset and two quick models instead of the tuned four."""
-    monkeypatch.setattr(thresholds, "load_xy", lambda: make_xy(n=400))
+    monkeypatch.setattr(splits, "load_xy", lambda path: make_xy(n=400))
     monkeypatch.setattr(thresholds, "build_tuned_models", cheap_models)
-    # Running the module as a script re-imports it, so patch the sources too.
-    monkeypatch.setattr(data, "load_xy", lambda: make_xy(n=400))
-    monkeypatch.setattr(models, "build_tuned_models", cheap_models)
 
 
 def test_main_prints_the_comparison_for_the_training_set(
@@ -39,9 +35,9 @@ def test_main_prints_the_comparison_for_the_training_set(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["thresholds"])
+    monkeypatch.setattr(sys, "argv", ["mf", "thresholds"])
 
-    thresholds.main()
+    app.main()
 
     captured = capsys.readouterr()
     assert "320 rows, 32 failures" in captured.out  # 80% of 400 rows, 10% failures
@@ -61,10 +57,10 @@ def test_main_accepts_targets_and_saves_a_plot(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "pr.png"
-    argv = ["thresholds", "--targets", "0.7", "--plot", str(path)]
+    argv = ["mf", "thresholds", "--targets", "0.7", "--plot", str(path)]
     monkeypatch.setattr(sys, "argv", argv)
 
-    thresholds.main()
+    app.main()
 
     out = capsys.readouterr().out
     assert "70%" in out and "85%" not in out
@@ -72,14 +68,13 @@ def test_main_accepts_targets_and_saves_a_plot(
     assert path.is_file()
 
 
-@pytest.mark.filterwarnings("ignore:.*found in sys.modules:RuntimeWarning")
-def test_module_runs_main_when_executed_as_script(
-    small_run: None,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+@pytest.mark.usefixtures("small_run")
+def test_main_reads_the_targets_from_a_config_file(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["thresholds"])
+    config = tmp_path / "thresholds.toml"
+    config.write_text("recall_targets = [0.6]\n")
 
-    runpy.run_module("machine_failure.experiments.thresholds", run_name="__main__")
+    app.main(["thresholds", "--config", str(config)])
 
-    assert "At each recall target" in capsys.readouterr().out
+    assert "60%" in capsys.readouterr().out

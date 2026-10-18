@@ -10,10 +10,8 @@ import argparse
 import logging
 from pathlib import Path
 
-from machine_failure.cli import add_verbosity_options, command, configure_logging
-from machine_failure.data import load_xy, split_train_test
+from machine_failure.config import ThresholdsConfig, load_or_default
 from machine_failure.evaluation import (
-    DEFAULT_TARGETS,
     best_f1_per_model,
     compare_at_recall_targets,
     describe_run,
@@ -21,33 +19,46 @@ from machine_failure.evaluation import (
     out_of_fold_predictions,
     plot_precision_recall,
 )
+from machine_failure.experiments.options import (
+    add_config_option,
+    add_data_option,
+    data_option,
+)
 from machine_failure.models import build_tuned_models
+from machine_failure.pipelines.splits import load_split
 
 logger = logging.getLogger(__name__)
 
+HELP = "compare decision thresholds of the tuned models"
 
-@command
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """The options of ``mf thresholds``."""
+    add_config_option(parser, "thresholds_default.toml")
+    add_data_option(parser)
     parser.add_argument(
         "--targets",
         nargs="+",
         type=float,
-        default=list(DEFAULT_TARGETS),
         help="recall targets to compare (default: 0.80 0.85 0.90)",
     )
     parser.add_argument(
         "--plot",
         type=Path,
-        default=None,
         help="save the precision-recall plot to this PNG file",
     )
-    add_verbosity_options(parser)
-    args = parser.parse_args()
-    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
-    X, y = load_xy()
-    X_train, _, y_train, _ = split_train_test(X, y)  # the test set is not used here
+
+def run(args: argparse.Namespace) -> None:
+    """``mf thresholds``: the threshold trade-off on out-of-fold predictions."""
+    config = load_or_default(
+        args.config,
+        ThresholdsConfig,
+        recall_targets=tuple(args.targets) if args.targets else None,
+        plot=args.plot,
+        data=data_option(args),
+    )
+    X_train, _, y_train, _ = load_split(config.data)  # the test rows are not used
     predictions = {}
     for name, model in build_tuned_models().items():
         logger.info("%s: out-of-fold predictions", name)
@@ -59,13 +70,9 @@ def main() -> None:
         "is at least the threshold."
     )
     print("\nAt each recall target: the highest threshold that reaches it")
-    print(format_table(compare_at_recall_targets(predictions, args.targets)))
+    print(format_table(compare_at_recall_targets(predictions, config.recall_targets)))
     print("\nAt the threshold with the best F1")
     print(format_table(best_f1_per_model(predictions)))
-    if args.plot is not None:
-        plot_precision_recall(predictions, args.plot, args.targets)
-        print(f"\nPlot saved to {args.plot}")
-
-
-if __name__ == "__main__":
-    main()
+    if config.plot is not None:
+        plot_precision_recall(predictions, config.plot, config.recall_targets)
+        print(f"\nPlot saved to {config.plot}")
