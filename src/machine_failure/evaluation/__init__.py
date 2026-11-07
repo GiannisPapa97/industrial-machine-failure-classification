@@ -3,9 +3,11 @@
 from machine_failure.evaluation.comparison import (
     METRICS,
     compare_models,
+    comparison_figure,
     describe_cross_validation,
     describe_run,
     format_comparison,
+    plot_comparison,
 )
 from machine_failure.evaluation.cross_validation import (
     N_SPLITS,
@@ -52,10 +54,12 @@ __all__ = [
     "best_settings",
     "compare_at_recall_targets",
     "compare_models",
+    "comparison_figure",
     "cross_validate_model",
     "describe_cross_validation",
     "describe_run",
     "format_comparison",
+    "plot_comparison",
     "format_table",
     "metrics_at_threshold",
     "group_medians",
