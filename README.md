@@ -29,7 +29,9 @@ probability is at least 0.475. On the held-out test set (2,000 machines, 68
 failures) it catches 55 failures with 2 false alarms (recall 0.81, precision
 0.96, PR-AUC 0.90), in line with the cross-validation estimate. It misses the
 failures that the data generates at random, which no model of these features can
-predict. Details, intervals and limits are in
+predict. The dataset is synthetic, generated from known rules plus random
+failures, so the score shows that the model recovers those rules, not how it
+would perform on real machines. Details, intervals and limits are in
 [the final model](docs/final-model.md).
 
 ![Precision against recall for the four tuned models, from out-of-fold predictions on the training set. Random forest keeps precision near 1 up to about 83% recall, the highest of the four.](docs/figures/precision_recall.png)
