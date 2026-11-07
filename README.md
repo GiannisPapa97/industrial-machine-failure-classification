@@ -1,9 +1,14 @@
 # Industrial Machine Failure Classification
 
+[![CI](https://github.com/GiannisPapa97/industrial-machine-failure-classification/actions/workflows/ci.yaml/badge.svg)](https://github.com/GiannisPapa97/industrial-machine-failure-classification/actions/workflows/ci.yaml)
+
 Binary classification of machine failure (`Machine failure` target) with
 scikit-learn, using the
 [AI4I 2020 Predictive Maintenance Dataset](https://archive.ics.uci.edu/dataset/601/ai4i+2020+predictive+maintenance+dataset)
 (10,000 rows, about 3.4% failures).
+
+**Status:** complete (November 2026). The held-out test set has been used once,
+for the final evaluation.
 
 ## Problem
 
@@ -746,3 +751,16 @@ is a bug and shows the full traceback. In code, these errors derive from
 `machine_failure.cli.UserError` (`ConfigError`, `DataValidationError`,
 `ModelFileError`, `SplitMismatchError`, `UnconfirmedTestSetError`) or are
 `FileNotFoundError` / `FileExistsError`.
+
+## License and credits
+
+The code is released under the [MIT License](LICENSE).
+
+The dataset is the AI4I 2020 Predictive Maintenance Dataset from the UCI Machine
+Learning Repository ([doi:10.24432/C5HS5C](https://doi.org/10.24432/C5HS5C)),
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It is
+not included in this repository; `mf download` fetches it. It was introduced in
+S. Matzka, "Explainable Artificial Intelligence for Predictive Maintenance
+Applications", 2020 Third International Conference on Artificial Intelligence
+for Industries (AI4I), 2020
+([doi:10.1109/AI4I49448.2020.00023](https://doi.org/10.1109/AI4I49448.2020.00023)).
