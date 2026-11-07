@@ -172,3 +172,29 @@ def test_main_logs_progress_unless_quiet(
     captured = capsys.readouterr()
     assert captured.err == ""
     assert "dummy" in captured.out  # the results are still printed
+
+
+@pytest.mark.usefixtures("synthetic_data")
+def test_main_saves_a_bar_chart_when_asked(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    path = tmp_path / "comparison.png"
+
+    app.main(
+        ["compare", "--models", "dummy", "logistic_regression", "--plot", str(path)]
+    )
+
+    assert path.read_bytes().startswith(b"\x89PNG")
+    assert f"Plot saved to {path}" in capsys.readouterr().out
+
+
+def test_plot_is_refused_with_feature_sets(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        app.main(
+            ["compare", "--feature-sets", "raw", "--plot", str(tmp_path / "x.png")]
+        )
+
+    assert exit_info.value.code == 1
+    assert "--plot is not available with --feature-sets" in capsys.readouterr().err

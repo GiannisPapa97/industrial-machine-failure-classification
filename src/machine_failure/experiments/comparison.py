@@ -7,14 +7,17 @@ used.
 """
 
 import argparse
+from pathlib import Path
 
 import pandas as pd
 
+from machine_failure.cli import UserError
 from machine_failure.config import ComparisonConfig, load_or_default
 from machine_failure.evaluation import (
     METRICS,
     describe_cross_validation,
     format_comparison,
+    plot_comparison,
 )
 from machine_failure.experiments.ablation import (
     FEATURE_SET_DESCRIPTION,
@@ -27,6 +30,7 @@ from machine_failure.experiments.options import (
     data_option,
 )
 from machine_failure.features import FEATURE_SETS
+from machine_failure.models import all_models
 from machine_failure.pipelines import ComparisonPipeline
 
 HELP = "compare models with cross-validation"
@@ -64,6 +68,11 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         default="pr_auc",
         help="metric to order the models by (default: pr_auc)",
     )
+    parser.add_argument(
+        "--plot",
+        type=Path,
+        help="also save a bar chart of the metric to this PNG file",
+    )
 
 
 def run(args: argparse.Namespace) -> None:
@@ -76,6 +85,8 @@ def run(args: argparse.Namespace) -> None:
         data=data_option(args),
     )
     pipeline = ComparisonPipeline(config)
+    if args.feature_sets and args.plot:
+        raise UserError("--plot is not available with --feature-sets")
     if args.feature_sets:
         X_train, y_train = pipeline.load_training_data()  # no test rows
         table = compare_feature_sets(
@@ -102,3 +113,7 @@ def run(args: argparse.Namespace) -> None:
     print(result.describe())
     print(f"Models are ordered by mean {args.metric}, best first.")
     print(format_comparison(sort_by_metric(result.table, args.metric)))
+    if args.plot is not None:
+        baselines = [name for name in config.models if name in all_models("baseline")]
+        plot_comparison(result.table, args.plot, args.metric, baselines)
+        print(f"\nPlot saved to {args.plot}")
