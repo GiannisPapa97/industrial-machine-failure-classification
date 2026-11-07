@@ -1,7 +1,7 @@
 """Fixtures and marking for the integration tests.
 
 Integration tests run the real workflows on the real dataset and compare the
-results with the numbers recorded in the README. They protect the behavior of the
+results with the numbers recorded in the docs (docs/). They protect the behavior of the
 project during refactoring. They are skipped when the dataset is not downloaded:
 run ``uv run mf download`` first.
 """

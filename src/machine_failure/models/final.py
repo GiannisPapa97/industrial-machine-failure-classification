@@ -15,8 +15,9 @@ from machine_failure.models.base import get_model
 from machine_failure.models.candidates import RandomForestModel
 
 # The chosen model, and its decision threshold (``Model.threshold``): the one with
-# the best F1 on its out-of-fold predictions (see the README). The final model is
-# refit on all the training rows, so that threshold approximates the best one.
+# the best F1 on its out-of-fold predictions (see docs/model-selection.md). The
+# final model is refit on all the training rows, so that threshold approximates
+# the best one.
 FINAL_MODEL = RandomForestModel.name
 FINAL_THRESHOLD = get_model(FINAL_MODEL).own_threshold()
 MODEL_PATH = Path("models/final_model.joblib")

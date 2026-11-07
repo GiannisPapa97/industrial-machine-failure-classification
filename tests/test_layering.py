@@ -1,4 +1,7 @@
-"""Packages import only from the packages below them (see the README layout)."""
+"""Packages import only from the packages below them.
+
+The order is described in the layout section of docs/development.md.
+"""
 
 import ast
 from pathlib import Path
