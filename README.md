@@ -32,25 +32,72 @@ failures that the data generates at random, which no model of these features can
 predict. Details, intervals and limits are in
 [the final model](docs/final-model.md).
 
-## Setup
+## Approach
+
+Every choice was made with cross-validation on the training set (80% of the
+rows); the held-out test set was used once, at the end.
+
+1. **Baselines.** A dummy classifier (PR-AUC 0.034) and a class-weighted logistic
+   regression (PR-AUC 0.459) set the bar.
+2. **Model comparison.** Ten models with default settings on the same folds;
+   random forest (0.890) and histogram gradient boosting (0.889) lead.
+3. **Features.** The three derived features (`temp_diff`, `power`, `strain`)
+   clearly help the tree-based models, so all nine features are kept.
+4. **Tuning.** The four best models are tuned with randomized search, scored by
+   nested cross-validation; the tuned random forest reaches PR-AUC 0.911.
+5. **Threshold.** The decision threshold is chosen on out-of-fold predictions:
+   0.475, the best F1 for the random forest.
+6. **Final evaluation.** The model is trained on all training rows and scored
+   once on the test set, with bootstrap intervals.
+
+Details: [data and features](docs/data-and-features.md),
+[model selection](docs/model-selection.md) and
+[the final model](docs/final-model.md).
+
+## How it is built
+
+- **Layered package.** `cli → data → features → evaluation → models → config →
+  pipelines → experiments`; each package only imports from the ones before it,
+  and a test enforces that.
+- **Clear interfaces.** A `Model` base class with a registry, typed and validated
+  configs read from TOML, reusable pipelines for training, comparison, inference
+  and the final evaluation, and one `mf` command for every workflow.
+- **A model file that can be checked.** The saved model records its training
+  config, where its threshold came from, the library versions and a fingerprint
+  of the held-out rows; the evaluation refuses to score any other rows.
+- **Tested.** Strict `mypy` and `ruff`, unit tests on synthetic data with a 90%
+  coverage minimum for every package (currently 100%), and integration tests that
+  pin the results on the real dataset. CI runs all of them on every pull request.
+
+## Quick start
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.14.
 
 ```bash
-uv sync
+uv sync                               # install
+uv run mf download                    # fetch the dataset into data/raw/
+uv run mf compare                     # compare the models (about a minute)
+uv run mf train                       # train and save the final model
+uv run mf predict rows.csv            # score new rows with the saved model
 ```
 
-## Get the data
+The dataset is not committed; `mf download` saves it to `data/raw/ai4i2020.csv`
+(`--dest` chooses another directory) and never replaces an existing file unless
+you pass `--overwrite`. Every command and option is described in
+[commands](docs/commands.md); `uv run mf --help` lists them too.
 
-The dataset is not committed. Download it from the UCI repository into
-`data/raw/ai4i2020.csv`:
+## Documentation
 
-```bash
-uv run mf download
-```
-
-An existing file is never replaced unless you pass `--overwrite`. Use `--dest`
-to write to a different directory.
+- [Data and features](docs/data-and-features.md): loading and validation, the
+  derived features, splitting, preprocessing and cross-validation.
+- [Model selection](docs/model-selection.md): baselines, model and feature-set
+  comparisons, hyperparameter tuning and threshold choice, with all the results.
+- [The final model](docs/final-model.md): training, the one-time test
+  evaluation, scoring new rows and what the model relies on.
+- [Commands](docs/commands.md): the `mf` command, its subcommands, output and
+  errors.
+- [Development](docs/development.md): checks and tests, code layout, configs and
+  how to add a model.
 
 ## Notebooks
 

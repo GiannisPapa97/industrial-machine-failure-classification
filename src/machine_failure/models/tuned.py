@@ -1,9 +1,9 @@
 """The tuned model configurations found by ``uv run mf tune``.
 
 Each setting is the best configuration of a randomized search over the training
-set (see the README for the nested cross-validation scores). The settings are
-defined on the model classes (``Model.tuned_settings``), next to the search space
-they come from; this module collects them by model name.
+set (see docs/model-selection.md for the nested cross-validation scores). The
+settings are defined on the model classes (``Model.tuned_settings``), next to
+the search space they come from; this module collects them by model name.
 """
 
 from typing import Any

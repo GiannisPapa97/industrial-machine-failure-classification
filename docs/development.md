@@ -31,7 +31,7 @@ the minimum is visible in the comment.
 
 The unit tests in `tests/` use small synthetic data and need no download. The
 integration tests in `tests/integration/` run the real workflows on the real
-dataset and compare the results with the numbers recorded in this README, so a
+dataset and compare the results with the numbers recorded in these docs, so a
 refactoring that changes a result is caught. They are marked `integration`
 automatically, and are skipped when the dataset has not been downloaded
 (`uv run mf download`). Tests that take more than about 30

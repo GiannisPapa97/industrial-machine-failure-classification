@@ -1,6 +1,8 @@
 # Data and features
 
-How the dataset is loaded and validated, the three derived features, and how the data is split, preprocessed and cross-validated. Back to the [README](../README.md).
+How the dataset is loaded and validated, the three derived features, and how the
+data is split, preprocessed and cross-validated. Back to the
+[README](../README.md).
 
 ## Load the data
 

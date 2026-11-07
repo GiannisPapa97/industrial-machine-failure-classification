@@ -9,16 +9,16 @@ Commands: one entry point, `mf`, installed with the project (run it with
 `uv run mf COMMAND`, or `uv run python -m machine_failure COMMAND`). `mf --help`
 lists the commands and `mf COMMAND --help` shows the options of one.
 
-| Command         | What it does                                        | Section                    |
+| Command         | What it does                                        | Details                    |
 | --------------- | --------------------------------------------------- | -------------------------- |
-| `mf download`   | download the dataset                                | Get the data               |
-| `mf compare`    | compare models with cross-validation; `--feature-sets` across feature sets | Baselines, Model comparison, Feature set comparison |
-| `mf tune`       | tune four models with nested cross-validation       | Hyperparameter tuning      |
-| `mf thresholds` | threshold analysis at recall targets                | Threshold tuning           |
-| `mf train`      | train and save the final model                      | Final evaluation           |
-| `mf evaluate`   | evaluate the final model once on the test set       | Final evaluation           |
-| `mf predict`    | score new rows with the saved model                 | Final evaluation           |
-| `mf interpret`  | feature importance and the failures it misses       | Final evaluation           |
+| `mf download`   | download the dataset                                | [Quick start](../README.md#quick-start) |
+| `mf compare`    | compare models with cross-validation; `--feature-sets` across feature sets | [Model selection](model-selection.md) |
+| `mf tune`       | tune four models with nested cross-validation       | [Model selection](model-selection.md#hyperparameter-tuning) |
+| `mf thresholds` | threshold analysis at recall targets                | [Model selection](model-selection.md#threshold-tuning) |
+| `mf train`      | train and save the final model                      | [The final model](final-model.md) |
+| `mf evaluate`   | evaluate the final model once on the test set       | [The final model](final-model.md) |
+| `mf predict`    | score new rows with the saved model                 | [The final model](final-model.md) |
+| `mf interpret`  | feature importance and the failures it misses       | [The final model](final-model.md) |
 
 Every command that reads the dataset accepts `--data FILE`, and every workflow
 command except `download` and `predict` accepts `--config FILE.toml` (examples in
