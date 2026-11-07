@@ -115,7 +115,7 @@ def comparison_figure(
     ax = fig.subplots()
     ax.set_facecolor(SURFACE)
     positions = list(range(len(names)))
-    ax.barh(positions, means.to_numpy(), height=0.5, color=colors)
+    ax.barh(positions, means.to_numpy(), height=0.34, color=colors)
     ax.errorbar(
         means.to_numpy(),
         positions,
