@@ -32,6 +32,12 @@ failures that the data generates at random, which no model of these features can
 predict. Details, intervals and limits are in
 [the final model](docs/final-model.md).
 
+![Precision against recall for the four tuned models, from out-of-fold predictions on the training set. Random forest keeps precision near 1 up to about 83% recall, the highest of the four.](docs/figures/precision_recall.png)
+
+*Precision against recall of the four tuned models, out-of-fold on the training
+set. Random forest keeps almost every alert real up to about 83% recall; beyond
+that, each extra failure caught costs many false alarms.*
+
 ## Approach
 
 Every choice was made with cross-validation on the training set (80% of the
@@ -49,6 +55,11 @@ rows); the held-out test set was used once, at the end.
    0.475, the best F1 for the random forest.
 6. **Final evaluation.** The model is trained on all training rows and scored
    once on the test set, with bootstrap intervals.
+
+![PR-AUC of the ten models with default settings, cross-validated on the training set. Random forest (0.890) and histogram gradient boosting lead; the logistic regression baseline is at about 0.46 and the dummy at 0.03.](docs/figures/model_comparison.png)
+
+*PR-AUC of each model with default settings, mean across five folds of the
+training set; the lines show one standard deviation.*
 
 Details: [data and features](docs/data-and-features.md),
 [model selection](docs/model-selection.md) and

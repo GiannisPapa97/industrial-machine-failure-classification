@@ -57,6 +57,18 @@ dataset is missing, so a failed download cannot pass as skipped tests. Together
 they check that a change keeps both the code covered and the recorded results
 unchanged.
 
+### Figures
+
+The figures in `docs/figures/` are made from the training set only, with the
+commands that report the same results:
+
+```bash
+uv run mf compare --plot docs/figures/model_comparison.png
+uv run mf thresholds --plot docs/figures/precision_recall.png
+```
+
+Regenerate them when a change moves those results.
+
 ## Layout
 
 ```

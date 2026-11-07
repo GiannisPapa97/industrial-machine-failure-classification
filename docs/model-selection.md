@@ -40,7 +40,9 @@ minute. The test set is not used. Use `--repeats N` for steadier estimates and
 `--models a b c` to compare only some models. `--config FILE.toml` reads the
 settings from a file (see `configs/`); the options override it. In Python, use
 `ComparisonPipeline(config).run()`, which returns the table and a description of the
-run.
+run. `--plot FILE` also saves the comparison as a bar chart:
+
+![PR-AUC of the ten models with default settings, cross-validated on the training set.](figures/model_comparison.png)
 
 The candidates are random forest, extra trees, histogram gradient boosting,
 XGBoost, KNN, SVM, an MLP and quadratic discriminant analysis, all behind the
@@ -224,6 +226,8 @@ uv run mf thresholds --plot pr_curves.png
 It uses the training set only; the test set is not touched. Options: `--targets`
 (recall targets to compare, default `0.80 0.85 0.90`) and `--plot FILE` (save the
 precision-recall curves as a PNG). It takes about a minute.
+
+![Precision against recall for the four tuned models, out-of-fold on the training set, with the 80%, 85% and 90% recall targets marked.](figures/precision_recall.png)
 
 How it works:
 
